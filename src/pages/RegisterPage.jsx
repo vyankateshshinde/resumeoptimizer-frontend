@@ -1,83 +1,421 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import {
+  Brain,
+  User,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  FileSearch,
+  Sparkles,
+  BarChart3,
+  ShieldCheck,
+} from "lucide-react";
 import axiosInstance from "../api/axiosInstance";
 
 const RegisterPage = () => {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [screen, setScreen] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
   });
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const resize = () => {
+      setScreen({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+
+  const isMobile = screen.width <= 640;
+  const isTablet = screen.width <= 1024;
+  const isShort = screen.height <= 760;
+
+  const showHero = !isTablet && screen.height >= 720;
+
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
 
     try {
+      setLoading(true);
       await axiosInstance.post("/api/auth/register", form);
       toast.success("Registration successful");
       navigate("/login");
-    } catch (error) {
+    } catch {
       toast.error("Registration failed");
+    } finally {
+      setLoading(false);
     }
   };
 
+  const styles = {
+    page: {
+      height: "100vh",
+      width: "100vw",
+      background: "#020617",
+      color: "#ffffff",
+      fontFamily: "Inter, system-ui, sans-serif",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: isMobile ? "12px" : "20px",
+      position: "relative",
+      overflow: "hidden",
+      boxSizing: "border-box",
+    },
+    bg: {
+      position: "absolute",
+      inset: 0,
+      background:
+        "radial-gradient(circle at 12% 20%, rgba(124,58,237,.32), transparent 34%), radial-gradient(circle at 88% 82%, rgba(79,70,229,.25), transparent 38%)",
+    },
+    container: {
+      width: "100%",
+      maxWidth: showHero ? "1060px" : "400px",
+      display: "grid",
+      gridTemplateColumns: showHero ? "1fr 400px" : "1fr",
+      gap: showHero ? "44px" : "0",
+      alignItems: "center",
+      position: "relative",
+      zIndex: 1,
+    },
+    logo: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      marginBottom: showHero ? "24px" : "14px",
+      justifyContent: showHero ? "flex-start" : "center",
+    },
+    logoIcon: {
+      width: showHero ? "44px" : "38px",
+      height: showHero ? "44px" : "38px",
+      borderRadius: "13px",
+      background: "linear-gradient(135deg,#8b5cf6,#4f46e5)",
+      display: "grid",
+      placeItems: "center",
+      boxShadow: "0 12px 30px rgba(124,58,237,.35)",
+      flexShrink: 0,
+    },
+    logoTitle: {
+      fontSize: showHero ? "18px" : "16px",
+      fontWeight: 900,
+      lineHeight: 1.05,
+    },
+    logoSubtitle: {
+      color: "#a78bfa",
+      fontSize: "12px",
+      fontWeight: 800,
+      marginTop: "2px",
+    },
+    heroTitle: {
+      margin: 0,
+      fontSize: isShort ? "42px" : "50px",
+      lineHeight: 1.05,
+      fontWeight: 950,
+      letterSpacing: "-1.3px",
+      maxWidth: "600px",
+    },
+    gradientText: {
+      background: "linear-gradient(90deg,#a78bfa,#818cf8)",
+      WebkitBackgroundClip: "text",
+      color: "transparent",
+    },
+    desc: {
+      marginTop: "14px",
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.6,
+      maxWidth: "520px",
+    },
+    features: {
+      marginTop: "20px",
+      display: "grid",
+      gridTemplateColumns: "repeat(2, 1fr)",
+      gap: "10px",
+      maxWidth: "540px",
+    },
+    feature: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "10px 12px",
+      borderRadius: "14px",
+      background: "rgba(15,23,42,.62)",
+      border: "1px solid rgba(139,92,246,.18)",
+      color: "#e2e8f0",
+      fontWeight: 700,
+      fontSize: "13px",
+    },
+    featureIcon: {
+      width: "28px",
+      height: "28px",
+      borderRadius: "999px",
+      background: "rgba(139,92,246,.20)",
+      color: "#a78bfa",
+      display: "grid",
+      placeItems: "center",
+      flexShrink: 0,
+    },
+    card: {
+      width: "100%",
+      background: "rgba(15,23,42,.92)",
+      border: "1px solid rgba(139,92,246,.25)",
+      backdropFilter: "blur(24px)",
+      borderRadius: isMobile ? "20px" : "24px",
+      padding: isMobile ? "18px" : "24px",
+      boxShadow: "0 22px 70px rgba(76,29,149,.34)",
+      boxSizing: "border-box",
+    },
+    cardLogo: {
+      display: showHero ? "none" : "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "10px",
+      marginBottom: "14px",
+    },
+    cardTitle: {
+      margin: 0,
+      fontSize: isMobile ? "24px" : "28px",
+      fontWeight: 900,
+      lineHeight: 1.1,
+      textAlign: showHero ? "left" : "center",
+    },
+    cardSubtitle: {
+      color: "#94a3b8",
+      marginTop: "6px",
+      fontSize: isMobile ? "12.5px" : "13.5px",
+      lineHeight: 1.45,
+      textAlign: showHero ? "left" : "center",
+    },
+    form: {
+      marginTop: "18px",
+      display: "grid",
+      gap: "10px",
+    },
+    label: {
+      color: "#cbd5e1",
+      fontSize: "12px",
+      marginBottom: "5px",
+      display: "block",
+      fontWeight: 800,
+    },
+    inputBox: {
+      height: isMobile ? "40px" : "43px",
+      display: "flex",
+      alignItems: "center",
+      background: "rgba(30,41,59,.92)",
+      border: "1px solid #334155",
+      borderRadius: "12px",
+      padding: "0 12px",
+    },
+    input: {
+      width: "100%",
+      background: "transparent",
+      border: "none",
+      outline: "none",
+      color: "#ffffff",
+      fontSize: "13px",
+      marginLeft: "9px",
+      minWidth: 0,
+    },
+    eyeBtn: {
+      background: "transparent",
+      border: "none",
+      cursor: "pointer",
+      color: "#94a3b8",
+      display: "flex",
+      alignItems: "center",
+      padding: 0,
+    },
+    button: {
+      width: "100%",
+      height: isMobile ? "42px" : "45px",
+      border: "none",
+      borderRadius: "12px",
+      color: "#ffffff",
+      fontSize: "14px",
+      fontWeight: 900,
+      cursor: loading ? "not-allowed" : "pointer",
+      opacity: loading ? 0.7 : 1,
+      background: "linear-gradient(90deg,#8b5cf6,#4f46e5)",
+      boxShadow: "0 15px 35px rgba(124,58,237,.30)",
+      marginTop: "2px",
+    },
+    loginText: {
+      textAlign: "center",
+      color: "#94a3b8",
+      marginTop: "12px",
+      fontSize: "12.5px",
+    },
+    link: {
+      color: "#a78bfa",
+      fontWeight: 900,
+      textDecoration: "none",
+    },
+    footerNote: {
+      marginTop: "10px",
+      padding: "8px",
+      borderRadius: "12px",
+      background: "rgba(139,92,246,.10)",
+      border: "1px solid rgba(139,92,246,.18)",
+      color: "#cbd5e1",
+      fontSize: "11.5px",
+      lineHeight: 1.35,
+      textAlign: "center",
+    },
+  };
+
+  const Feature = ({ icon, text }) => (
+    <div style={styles.feature}>
+      <div style={styles.featureIcon}>{icon}</div>
+      <span>{text}</span>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow">
-        <h1 className="text-3xl font-bold text-center">Create Account</h1>
+    <div style={styles.page}>
+      <div style={styles.bg}></div>
 
-        <form onSubmit={handleRegister} className="mt-8 space-y-4">
-          <input
-            name="name"
-            placeholder="Full Name"
-            value={form.name}
-            onChange={handleChange}
-            className="w-full border p-3 rounded-xl"
-            required
-          />
+      <main style={styles.container}>
+        {showHero && (
+          <section>
+            <div style={styles.logo}>
+              <div style={styles.logoIcon}>
+                <Brain size={24} />
+              </div>
 
-          <input
-            name="email"
-            type="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            className="w-full border p-3 rounded-xl"
-            required
-          />
+              <div>
+                <div style={styles.logoTitle}>AI Resume</div>
+                <div style={styles.logoSubtitle}>Optimizer</div>
+              </div>
+            </div>
 
-          <input
-            name="password"
-            type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={handleChange}
-            className="w-full border p-3 rounded-xl"
-            required
-          />
+            <h1 style={styles.heroTitle}>
+              Create your account.
+              <br />
+              <span style={styles.gradientText}>Start optimizing.</span>
+            </h1>
 
-          <button className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">
-            Register
-          </button>
-        </form>
+            <p style={styles.desc}>
+              Join the platform to analyze resumes, improve ATS scores, detect
+              missing skills and get AI-powered recommendations.
+            </p>
 
-        <p className="text-center mt-5">
-          Already registered?{" "}
-          <Link to="/login" className="text-blue-600 font-semibold">
-            Login
-          </Link>
-        </p>
-      </div>
+            <div style={styles.features}>
+              <Feature icon={<FileSearch size={13} />} text="ATS Score Analysis" />
+              <Feature icon={<Sparkles size={13} />} text="AI Recommendations" />
+              <Feature icon={<BarChart3 size={13} />} text="Skill Gap Detection" />
+              <Feature icon={<ShieldCheck size={13} />} text="Secure JWT Access" />
+            </div>
+          </section>
+        )}
+
+        <section style={styles.card}>
+          <div style={styles.cardLogo}>
+            <div style={styles.logoIcon}>
+              <Brain size={21} />
+            </div>
+
+            <div>
+              <div style={styles.logoTitle}>AI Resume</div>
+              <div style={styles.logoSubtitle}>Optimizer</div>
+            </div>
+          </div>
+
+          <h2 style={styles.cardTitle}>Create Account</h2>
+          <p style={styles.cardSubtitle}>
+            Register to access ATS reports and AI recommendations.
+          </p>
+
+          <form onSubmit={handleRegister} style={styles.form}>
+            <div>
+              <label style={styles.label}>Full Name</label>
+              <div style={styles.inputBox}>
+                <User size={14} color="#64748b" />
+                <input
+                  name="name"
+                  type="text"
+                  placeholder="Enter your name"
+                  value={form.name}
+                  onChange={handleChange}
+                  style={styles.input}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={styles.label}>Email</label>
+              <div style={styles.inputBox}>
+                <Mail size={14} color="#64748b" />
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="john.doe@example.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  style={styles.input}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={styles.label}>Password</label>
+              <div style={styles.inputBox}>
+                <Lock size={14} color="#64748b" />
+                <input
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Create password"
+                  value={form.password}
+                  onChange={handleChange}
+                  style={styles.input}
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={styles.eyeBtn}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" style={styles.button}>
+              {loading ? "Creating account..." : "Register"}
+            </button>
+          </form>
+
+          <div style={styles.loginText}>
+            Already have an account?{" "}
+            <Link to="/login" style={styles.link}>
+              Login
+            </Link>
+          </div>
+
+          <div style={styles.footerNote}>
+            Built for developers to improve ATS visibility.
+          </div>
+        </section>
+      </main>
     </div>
   );
 };

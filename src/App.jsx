@@ -5,18 +5,75 @@ import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import ResumeUploadPage from "./pages/ResumeUploadPage";
 import AtsAnalysisPage from "./pages/AtsAnalysisPage";
+import AtsHistoryPage from "./pages/AtsHistoryPage";
+import AiRecommendationsPage from "./pages/AiRecommendationsPage";
+
 import ProtectedRoute from "./components/ProtectedRoute";
+import AppLayout from "./components/AppLayout";
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-      <Route path="/upload-resume" element={<ProtectedRoute><ResumeUploadPage /></ProtectedRoute>} />
-      <Route path="/ats-analysis" element={<ProtectedRoute><AtsAnalysisPage /></ProtectedRoute>} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <DashboardPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/upload-resume"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <ResumeUploadPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ats-analysis"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <AtsAnalysisPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ats-history"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <AtsHistoryPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ai-recommendations"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <AiRecommendationsPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
