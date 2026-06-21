@@ -10,6 +10,7 @@ import {
   Menu,
   History,
   X,
+  Hammer,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
@@ -35,6 +36,7 @@ const AppLayout = ({ children }) => {
 
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { name: "Resume Builder", path: "/resume-builder", icon: Hammer },
     { name: "Upload Resume", path: "/upload-resume", icon: UploadCloud },
     { name: "ATS Analysis", path: "/ats-analysis", icon: BarChart3 },
     { name: "ATS History", path: "/ats-history", icon: History },
@@ -280,8 +282,8 @@ const AppLayout = ({ children }) => {
             <p style={styles.headerSub}>Analyze, optimize and improve resumes with AI.</p>
           </div>
 
-          <Link to="/upload-resume" style={styles.ctaBtn}>
-            Upload Resume
+          <Link to="/resume-builder" style={styles.ctaBtn}>
+            Build Resume
           </Link>
         </header>
 

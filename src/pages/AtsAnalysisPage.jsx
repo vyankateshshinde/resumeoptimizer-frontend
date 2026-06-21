@@ -67,38 +67,70 @@ const AtsAnalysisPage = () => {
   };
 
   const handleAnalyze = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!resumeId) {
-      toast.error("Please select a resume");
-      return;
-    }
+  if (!resumeId) {
+    toast.error("Please select a resume");
+    return;
+  }
 
-    if (!jobDescription.trim()) {
-      toast.error("Please paste job description");
-      return;
-    }
+  if (!jobDescription.trim()) {
+    toast.error("Please paste job description");
+    return;
+  }
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const response = await axiosInstance.post(`/api/ats/${resumeId}`, {
-        jobDescription,
-      });
+    const response = await axiosInstance.post(`/api/ats/${resumeId}`, {
+      jobDescription,
+    });
 
-      setResult(response.data);
+    const normalizedResult = {
+      ...response.data,
 
-      localStorage.setItem("latestAtsResult", JSON.stringify(response.data));
+      matchedSkills: Array.isArray(response.data.matchedSkills)
+        ? response.data.matchedSkills
+        : response.data.matchedSkills
+        ? response.data.matchedSkills
+            .split(",")
+            .map((skill) => skill.trim())
+            .filter(Boolean)
+        : [],
 
-      toast.success("ATS Analysis Completed");
-    } catch (error) {
-      console.error(error);
-      toast.error("Analysis Failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+      missingSkills: Array.isArray(response.data.missingSkills)
+        ? response.data.missingSkills
+        : response.data.missingSkills
+        ? response.data.missingSkills
+            .split(",")
+            .map((skill) => skill.trim())
+            .filter(Boolean)
+        : [],
+    };
 
+    console.log("ATS Response:", normalizedResult);
+
+    setResult(normalizedResult);
+
+    localStorage.setItem(
+      "latestAtsResult",
+      JSON.stringify(normalizedResult)
+    );
+
+    localStorage.setItem(
+      "latestJobDescription",
+      jobDescription
+    );
+
+    toast.success("ATS Analysis Completed");
+  } catch (error) {
+    console.error(error);
+    toast.error("Analysis Failed");
+  } finally {
+    setLoading(false);
+  }
+};
+  
   const selectedResume = resumes.find(
     (resume) => resume.id === Number(resumeId)
   );

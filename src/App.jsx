@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-
+import ResumeBuilderPage from "./pages/ResumeBuilderPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -7,6 +7,7 @@ import ResumeUploadPage from "./pages/ResumeUploadPage";
 import AtsAnalysisPage from "./pages/AtsAnalysisPage";
 import AtsHistoryPage from "./pages/AtsHistoryPage";
 import AiRecommendationsPage from "./pages/AiRecommendationsPage";
+import PromptResumeEditorPage from "./pages/PromptResumeEditorPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
@@ -39,6 +40,16 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+  path="/resume-builder"
+  element={
+    <ProtectedRoute>
+      <AppLayout>
+        <ResumeBuilderPage />
+      </AppLayout>
+    </ProtectedRoute>
+  }
+/>
 
       <Route
         path="/ats-analysis"
@@ -68,6 +79,17 @@ function App() {
           <ProtectedRoute>
             <AppLayout>
               <AiRecommendationsPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/prompt-editor"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <PromptResumeEditorPage />
             </AppLayout>
           </ProtectedRoute>
         }
