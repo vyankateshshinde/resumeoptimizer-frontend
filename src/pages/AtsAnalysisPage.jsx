@@ -17,8 +17,12 @@ const AtsAnalysisPage = () => {
   const [resumes, setResumes] = useState([]);
   const [resumeId, setResumeId] = useState("");
   const [jobDescription, setJobDescription] = useState("");
+
   const [result, setResult] = useState(null);
+  const [aiResult, setAiResult] = useState(null);
+
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [resumesLoading, setResumesLoading] = useState(false);
 
   useEffect(() => {
@@ -58,6 +62,7 @@ const AtsAnalysisPage = () => {
     const selectedId = Number(e.target.value);
     setResumeId(selectedId);
     setResult(null);
+    setAiResult(null);
 
     const selectedResume = resumes.find((resume) => resume.id === selectedId);
 
@@ -66,76 +71,108 @@ const AtsAnalysisPage = () => {
     }
   };
 
+  const normalizeArray = (value) => {
+    if (Array.isArray(value)) return value;
+
+    if (typeof value === "string" && value.trim()) {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    return [];
+  };
+
   const handleAnalyze = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!resumeId) {
-    toast.error("Please select a resume");
-    return;
-  }
+    if (!resumeId) {
+      toast.error("Please select a resume");
+      return;
+    }
 
-  if (!jobDescription.trim()) {
-    toast.error("Please paste job description");
-    return;
-  }
+    if (!jobDescription.trim()) {
+      toast.error("Please paste job description");
+      return;
+    }
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const response = await axiosInstance.post(`/api/ats/${resumeId}`, {
-      jobDescription,
-    });
+      const response = await axiosInstance.post(`/api/ats/${resumeId}`, {
+        jobDescription,
+      });
 
-    const normalizedResult = {
-      ...response.data,
+      const normalizedResult = {
+        ...response.data,
+        resumeId: Number(resumeId),
+        matchedSkills: normalizeArray(response.data.matchedSkills),
+        missingSkills: normalizeArray(response.data.missingSkills),
+      };
 
-      matchedSkills: Array.isArray(response.data.matchedSkills)
-        ? response.data.matchedSkills
-        : response.data.matchedSkills
-        ? response.data.matchedSkills
-            .split(",")
-            .map((skill) => skill.trim())
-            .filter(Boolean)
-        : [],
+      setResult(normalizedResult);
 
-      missingSkills: Array.isArray(response.data.missingSkills)
-        ? response.data.missingSkills
-        : response.data.missingSkills
-        ? response.data.missingSkills
-            .split(",")
-            .map((skill) => skill.trim())
-            .filter(Boolean)
-        : [],
-    };
+      localStorage.setItem("latestAtsResult", JSON.stringify(normalizedResult));
+      localStorage.setItem("latestJobDescription", jobDescription);
 
-    console.log("ATS Response:", normalizedResult);
+      toast.success("Rule-Based ATS Analysis Completed");
+    } catch (error) {
+      console.error(error);
+      toast.error("Analysis Failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setResult(normalizedResult);
+  const handleAiAtsAnalyze = async () => {
+    if (!resumeId) {
+      toast.error("Please select a resume");
+      return;
+    }
 
-    localStorage.setItem(
-      "latestAtsResult",
-      JSON.stringify(normalizedResult)
-    );
+    if (!jobDescription.trim()) {
+      toast.error("Please paste job description");
+      return;
+    }
 
-    localStorage.setItem(
-      "latestJobDescription",
-      jobDescription
-    );
+    try {
+      setAiLoading(true);
 
-    toast.success("ATS Analysis Completed");
-  } catch (error) {
-    console.error(error);
-    toast.error("Analysis Failed");
-  } finally {
-    setLoading(false);
-  }
-};
-  
+      const response = await axiosInstance.post("/api/ai-ats/analyze", {
+        resumeId: Number(resumeId),
+        jobDescription,
+      });
+
+      const normalizedAiResult = {
+        ...response.data,
+        matchedSkills: normalizeArray(response.data.matchedSkills),
+        missingSkills: normalizeArray(response.data.missingSkills),
+        strengths: normalizeArray(response.data.strengths),
+        weaknesses: normalizeArray(response.data.weaknesses),
+        recommendations: normalizeArray(response.data.recommendations),
+      };
+
+      setAiResult(normalizedAiResult);
+
+      localStorage.setItem("latestAiAtsResult", JSON.stringify(normalizedAiResult));
+      localStorage.setItem("latestJobDescription", jobDescription);
+
+      toast.success("AI Universal ATS Analysis Completed");
+    } catch (error) {
+      console.error(error);
+      toast.error("AI ATS Analysis Failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const selectedResume = resumes.find(
     (resume) => resume.id === Number(resumeId)
   );
 
   const finalScore = result?.finalScore ?? 0;
+  const aiScore = aiResult?.atsScore ?? 0;
 
   const styles = {
     page: {
@@ -297,6 +334,24 @@ const AtsAnalysisPage = () => {
       gap: "9px",
       boxShadow: "0 16px 35px rgba(124,58,237,.28)",
     },
+    aiButton: {
+      width: "100%",
+      height: "50px",
+      border: "none",
+      borderRadius: "14px",
+      background: "linear-gradient(90deg,#22c55e,#16a34a)",
+      color: "#ffffff",
+      fontSize: "14px",
+      fontWeight: 900,
+      cursor: aiLoading || !resumeId ? "not-allowed" : "pointer",
+      opacity: aiLoading || !resumeId ? 0.65 : 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "9px",
+      boxShadow: "0 16px 35px rgba(34,197,94,.18)",
+      marginTop: "12px",
+    },
     resultCard: {
       background:
         "linear-gradient(135deg, rgba(139,92,246,.20), rgba(79,70,229,.10))",
@@ -325,6 +380,17 @@ const AtsAnalysisPage = () => {
         finalScore * 3.6
       }deg, rgba(51,65,85,.8) 0deg)`,
       boxShadow: "0 18px 45px rgba(124,58,237,.22)",
+    },
+    aiScoreCircle: {
+      width: "132px",
+      height: "132px",
+      borderRadius: "999px",
+      display: "grid",
+      placeItems: "center",
+      background: `conic-gradient(#22c55e ${
+        aiScore * 3.6
+      }deg, rgba(51,65,85,.8) 0deg)`,
+      boxShadow: "0 18px 45px rgba(34,197,94,.18)",
     },
     scoreInner: {
       width: "104px",
@@ -428,6 +494,13 @@ const AtsAnalysisPage = () => {
       lineHeight: 1.75,
       fontSize: "13px",
     },
+    list: {
+      margin: "14px 0 0",
+      paddingLeft: "20px",
+      color: "#cbd5e1",
+      lineHeight: 1.7,
+      fontSize: "13px",
+    },
     empty: {
       marginTop: "20px",
       background: "rgba(15,23,42,.62)",
@@ -447,8 +520,8 @@ const AtsAnalysisPage = () => {
         <p style={styles.badge}>ATS Resume Analysis</p>
         <h1 style={styles.title}>Analyze Resume Against Job Description</h1>
         <p style={styles.subtitle}>
-          Select an uploaded resume, paste a job description and calculate ATS
-          score, matched skills, missing skills and feedback.
+          Select an uploaded resume, paste a job description and calculate
+          rule-based ATS score or run AI Universal ATS Analysis for any sector.
         </p>
       </div>
 
@@ -532,7 +605,26 @@ const AtsAnalysisPage = () => {
               ) : (
                 <>
                   <BarChart3 size={17} />
-                  Analyze Resume
+                  Rule-Based ATS Analysis
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleAiAtsAnalyze}
+              style={styles.aiButton}
+              disabled={aiLoading || !resumeId}
+            >
+              {aiLoading ? (
+                <>
+                  <Loader2 size={17} />
+                  AI Analyzing...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={17} />
+                  AI Universal ATS Analysis
                 </>
               )}
             </button>
@@ -542,7 +634,7 @@ const AtsAnalysisPage = () => {
         <div style={styles.resultCard}>
           <h2 style={styles.cardTitle}>
             <Target size={21} color="#a78bfa" />
-            ATS Score Result
+            Rule-Based ATS Score
           </h2>
 
           {result ? (
@@ -570,7 +662,7 @@ const AtsAnalysisPage = () => {
             </>
           ) : (
             <div style={styles.empty}>
-              ATS result will appear here after analysis.
+              Rule-based ATS result will appear here after analysis.
             </div>
           )}
         </div>
@@ -612,7 +704,9 @@ const AtsAnalysisPage = () => {
                     </span>
                   ))
                 ) : (
-                  <span style={styles.chipGreen}>No missing skills found</span>
+                  <span style={styles.chipRed}>
+                    No missing skills detected
+                  </span>
                 )}
               </div>
             </div>
@@ -621,12 +715,117 @@ const AtsAnalysisPage = () => {
           <div style={styles.feedback}>
             <h3 style={styles.skillTitle}>
               <Sparkles size={19} color="#c4b5fd" />
-              Feedback & Recommendations
+              Rule-Based Feedback
             </h3>
 
             <p style={styles.feedbackText}>
               {result.feedback || "No feedback available."}
             </p>
+          </div>
+        </>
+      )}
+
+      {aiResult && (
+        <>
+          <div style={styles.feedback}>
+            <h3 style={styles.skillTitle}>
+              <Sparkles size={19} color="#86efac" />
+              AI Universal ATS Score
+            </h3>
+
+            <div style={styles.scoreBox}>
+              <div style={styles.aiScoreCircle}>
+                <div style={styles.scoreInner}>
+                  <div style={styles.scoreValue}>{aiResult.atsScore}%</div>
+                </div>
+              </div>
+              <p style={styles.scoreLabel}>AI Industry-Neutral ATS Score</p>
+            </div>
+          </div>
+
+          <div style={styles.sectionGrid}>
+            <div style={styles.skillCard}>
+              <h3 style={styles.skillTitle}>
+                <CheckCircle2 size={19} color="#86efac" />
+                AI Matched Requirements
+              </h3>
+
+              <div style={styles.chips}>
+                {aiResult.matchedSkills?.length ? (
+                  aiResult.matchedSkills.map((skill, index) => (
+                    <span key={index} style={styles.chipGreen}>
+                      {skill}
+                    </span>
+                  ))
+                ) : (
+                  <span style={styles.chipGreen}>No matched requirements</span>
+                )}
+              </div>
+            </div>
+
+            <div style={styles.skillCard}>
+              <h3 style={styles.skillTitle}>
+                <XCircle size={19} color="#fca5a5" />
+                AI Missing Requirements
+              </h3>
+
+              <div style={styles.chips}>
+                {aiResult.missingSkills?.length ? (
+                  aiResult.missingSkills.map((skill, index) => (
+                    <span key={index} style={styles.chipRed}>
+                      {skill}
+                    </span>
+                  ))
+                ) : (
+                  <span style={styles.chipGreen}>No missing requirements</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.sectionGrid}>
+            <div style={styles.skillCard}>
+              <h3 style={styles.skillTitle}>Strengths</h3>
+              <ul style={styles.list}>
+                {aiResult.strengths?.length ? (
+                  aiResult.strengths.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))
+                ) : (
+                  <li>No strengths returned</li>
+                )}
+              </ul>
+            </div>
+
+            <div style={styles.skillCard}>
+              <h3 style={styles.skillTitle}>Weaknesses</h3>
+              <ul style={styles.list}>
+                {aiResult.weaknesses?.length ? (
+                  aiResult.weaknesses.map((item, index) => (
+                    <li key={index}>{item}</li>
+                  ))
+                ) : (
+                  <li>No weaknesses returned</li>
+                )}
+              </ul>
+            </div>
+          </div>
+
+          <div style={styles.feedback}>
+            <h3 style={styles.skillTitle}>
+              <Sparkles size={19} color="#c4b5fd" />
+              AI Recommendations
+            </h3>
+
+            <ul style={styles.list}>
+              {aiResult.recommendations?.length ? (
+                aiResult.recommendations.map((item, index) => (
+                  <li key={index}>{item}</li>
+                ))
+              ) : (
+                <li>No recommendations returned</li>
+              )}
+            </ul>
           </div>
         </>
       )}

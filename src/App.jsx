@@ -8,7 +8,7 @@ import AtsAnalysisPage from "./pages/AtsAnalysisPage";
 import AtsHistoryPage from "./pages/AtsHistoryPage";
 import AiRecommendationsPage from "./pages/AiRecommendationsPage";
 import PromptResumeEditorPage from "./pages/PromptResumeEditorPage";
-
+import ResumeVersionsPage from "./pages/ResumeVersionsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 
@@ -30,6 +30,16 @@ function App() {
         }
       />
 
+<Route
+  path="/resume-versions"
+  element={
+    <ProtectedRoute>
+      <AppLayout>
+        <ResumeVersionsPage />
+      </AppLayout>
+    </ProtectedRoute>
+  }
+/>
       <Route
         path="/upload-resume"
         element={
