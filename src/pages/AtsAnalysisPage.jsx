@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -13,39 +13,181 @@ import {
 } from "lucide-react";
 import axiosInstance from "../api/axiosInstance";
 
+const ATS_PAGE_STATE_KEY = "atsAnalysisPageState";
+
+const safeJsonParse = (value, fallback = null) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeArray = (value) => {
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === "string" && value.trim()) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const normalizeAtsResult = (data, selectedResumeId) => {
+  if (!data) return null;
+
+  return {
+    ...data,
+    resumeId: Number(data.resumeId ?? selectedResumeId),
+    finalScore: data.finalScore ?? data.atsScore ?? 0,
+    skillScore: data.skillScore ?? 0,
+    keywordScore: data.keywordScore ?? 0,
+    atsScore: data.atsScore ?? data.finalScore ?? 0,
+    matchedSkills: normalizeArray(data.matchedSkills),
+    missingSkills: normalizeArray(data.missingSkills),
+    strengths: normalizeArray(data.strengths),
+    weaknesses: normalizeArray(data.weaknesses),
+    recommendations: normalizeArray(data.recommendations),
+    feedback: data.feedback || "",
+  };
+};
+
+const getInitialState = () => {
+  const pageState = safeJsonParse(localStorage.getItem(ATS_PAGE_STATE_KEY));
+  const savedResume = safeJsonParse(localStorage.getItem("selectedResume"));
+  const latestRuleResult = safeJsonParse(localStorage.getItem("latestRuleAtsResult"));
+  const latestAtsResult = safeJsonParse(localStorage.getItem("latestAtsResult"));
+  const latestAiResult = safeJsonParse(localStorage.getItem("latestAiAtsResult"));
+  const latestJobDescription = localStorage.getItem("latestJobDescription") || "";
+
+  const fallbackResult = latestRuleResult || latestAtsResult || null;
+
+  return {
+    resumeId:
+      pageState?.resumeId ||
+      fallbackResult?.resumeId ||
+      latestAiResult?.resumeId ||
+      savedResume?.id ||
+      "",
+    jobDescription:
+      pageState?.jobDescription || latestJobDescription || "",
+    result: pageState?.result || normalizeAtsResult(fallbackResult, savedResume?.id),
+    aiResult: pageState?.aiResult || normalizeAtsResult(latestAiResult, savedResume?.id),
+  };
+};
+
+const saveAtsPageState = ({ resumeId, jobDescription, result, aiResult }) => {
+  localStorage.setItem(
+    ATS_PAGE_STATE_KEY,
+    JSON.stringify({
+      resumeId,
+      jobDescription,
+      result,
+      aiResult,
+    })
+  );
+
+  if (jobDescription !== undefined) {
+    localStorage.setItem("latestJobDescription", jobDescription || "");
+  }
+
+  if (result) {
+    localStorage.setItem("latestRuleAtsResult", JSON.stringify(result));
+    localStorage.setItem("latestAtsResult", JSON.stringify(result));
+  }
+
+  if (aiResult) {
+    localStorage.setItem("latestAiAtsResult", JSON.stringify(aiResult));
+  }
+};
+
 const AtsAnalysisPage = () => {
+  const initialState = useMemo(() => getInitialState(), []);
+
   const [resumes, setResumes] = useState([]);
-  const [resumeId, setResumeId] = useState("");
-  const [jobDescription, setJobDescription] = useState("");
-
-  const [result, setResult] = useState(null);
-  const [aiResult, setAiResult] = useState(null);
-
+  const [resumeId, setResumeId] = useState(initialState.resumeId);
+  const [jobDescription, setJobDescription] = useState(initialState.jobDescription);
+  const [result, setResult] = useState(initialState.result);
+  const [aiResult, setAiResult] = useState(initialState.aiResult);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [resumesLoading, setResumesLoading] = useState(false);
+
+  const fetchLatestAtsResult = async (selectedResumeId) => {
+    if (!selectedResumeId) return;
+
+    try {
+      const response = await axiosInstance.get(
+        `/api/ats/history/latest/${selectedResumeId}`
+      );
+
+      const latest = response.data;
+      const latestResult = normalizeAtsResult(latest, selectedResumeId);
+      const latestJd = latest.jobDescription || jobDescription || "";
+
+      setJobDescription(latestJd);
+      setResult(latestResult);
+
+      saveAtsPageState({
+        resumeId: selectedResumeId,
+        jobDescription: latestJd,
+        result: latestResult,
+        aiResult,
+      });
+    } catch (error) {
+      console.log("No previous ATS result found for this resume");
+    }
+  };
 
   useEffect(() => {
     const fetchResumes = async () => {
       try {
         setResumesLoading(true);
         const response = await axiosInstance.get("/api/resume/my-resumes");
-
         const list = Array.isArray(response.data) ? response.data : [];
+
         setResumes(list);
 
-        const savedResume = JSON.parse(
-          localStorage.getItem("selectedResume") || "null"
-        );
+        if (resumeId) {
+          const selectedResume = list.find(
+            (resume) => Number(resume.id) === Number(resumeId)
+          );
+
+          if (selectedResume) {
+            localStorage.setItem("selectedResume", JSON.stringify(selectedResume));
+          }
+
+          return;
+        }
+
+        const savedResume = safeJsonParse(localStorage.getItem("selectedResume"));
 
         if (
           savedResume?.id &&
-          list.some((resume) => resume.id === savedResume.id)
+          list.some((resume) => Number(resume.id) === Number(savedResume.id))
         ) {
           setResumeId(savedResume.id);
-        } else if (list.length > 0) {
+          saveAtsPageState({
+            resumeId: savedResume.id,
+            jobDescription,
+            result,
+            aiResult,
+          });
+          return;
+        }
+
+        if (list.length > 0) {
           setResumeId(list[0].id);
           localStorage.setItem("selectedResume", JSON.stringify(list[0]));
+          saveAtsPageState({
+            resumeId: list[0].id,
+            jobDescription,
+            result,
+            aiResult,
+          });
         }
       } catch (error) {
         console.error(error);
@@ -58,30 +200,39 @@ const AtsAnalysisPage = () => {
     fetchResumes();
   }, []);
 
-  const handleResumeChange = (e) => {
+  const handleResumeChange = async (e) => {
     const selectedId = Number(e.target.value);
+    const selectedResume = resumes.find((resume) => Number(resume.id) === selectedId);
+
     setResumeId(selectedId);
     setResult(null);
     setAiResult(null);
-
-    const selectedResume = resumes.find((resume) => resume.id === selectedId);
+    setJobDescription("");
 
     if (selectedResume) {
       localStorage.setItem("selectedResume", JSON.stringify(selectedResume));
     }
+
+    saveAtsPageState({
+      resumeId: selectedId,
+      jobDescription: "",
+      result: null,
+      aiResult: null,
+    });
+
+    await fetchLatestAtsResult(selectedId);
   };
 
-  const normalizeArray = (value) => {
-    if (Array.isArray(value)) return value;
+  const handleJobDescriptionChange = (e) => {
+    const value = e.target.value;
+    setJobDescription(value);
 
-    if (typeof value === "string" && value.trim()) {
-      return value
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-    }
-
-    return [];
+    saveAtsPageState({
+      resumeId,
+      jobDescription: value,
+      result,
+      aiResult,
+    });
   };
 
   const handleAnalyze = async (e) => {
@@ -104,17 +255,15 @@ const AtsAnalysisPage = () => {
         jobDescription,
       });
 
-      const normalizedResult = {
-        ...response.data,
-        resumeId: Number(resumeId),
-        matchedSkills: normalizeArray(response.data.matchedSkills),
-        missingSkills: normalizeArray(response.data.missingSkills),
-      };
-
+      const normalizedResult = normalizeAtsResult(response.data, resumeId);
       setResult(normalizedResult);
 
-      localStorage.setItem("latestAtsResult", JSON.stringify(normalizedResult));
-      localStorage.setItem("latestJobDescription", jobDescription);
+      saveAtsPageState({
+        resumeId,
+        jobDescription,
+        result: normalizedResult,
+        aiResult,
+      });
 
       toast.success("Rule-Based ATS Analysis Completed");
     } catch (error) {
@@ -144,19 +293,15 @@ const AtsAnalysisPage = () => {
         jobDescription,
       });
 
-      const normalizedAiResult = {
-        ...response.data,
-        matchedSkills: normalizeArray(response.data.matchedSkills),
-        missingSkills: normalizeArray(response.data.missingSkills),
-        strengths: normalizeArray(response.data.strengths),
-        weaknesses: normalizeArray(response.data.weaknesses),
-        recommendations: normalizeArray(response.data.recommendations),
-      };
-
+      const normalizedAiResult = normalizeAtsResult(response.data, resumeId);
       setAiResult(normalizedAiResult);
 
-      localStorage.setItem("latestAiAtsResult", JSON.stringify(normalizedAiResult));
-      localStorage.setItem("latestJobDescription", jobDescription);
+      saveAtsPageState({
+        resumeId,
+        jobDescription,
+        result,
+        aiResult: normalizedAiResult,
+      });
 
       toast.success("AI Universal ATS Analysis Completed");
     } catch (error) {
@@ -168,21 +313,15 @@ const AtsAnalysisPage = () => {
   };
 
   const selectedResume = resumes.find(
-    (resume) => resume.id === Number(resumeId)
+    (resume) => Number(resume.id) === Number(resumeId)
   );
 
   const finalScore = result?.finalScore ?? 0;
-  const aiScore = aiResult?.atsScore ?? 0;
+  const aiScore = aiResult?.atsScore ?? aiResult?.finalScore ?? 0;
 
   const styles = {
-    page: {
-      width: "100%",
-      color: "#ffffff",
-      boxSizing: "border-box",
-    },
-    header: {
-      marginBottom: "22px",
-    },
+    page: { width: "100%", color: "#ffffff", boxSizing: "border-box" },
+    header: { marginBottom: "22px" },
     badge: {
       margin: 0,
       color: "#a78bfa",
@@ -224,11 +363,7 @@ const AtsAnalysisPage = () => {
       alignItems: "center",
       gap: "10px",
     },
-    form: {
-      marginTop: "20px",
-      display: "grid",
-      gap: "16px",
-    },
+    form: { marginTop: "20px", display: "grid", gap: "16px" },
     label: {
       display: "block",
       color: "#cbd5e1",
@@ -401,10 +536,7 @@ const AtsAnalysisPage = () => {
       placeItems: "center",
       border: "1px solid rgba(139,92,246,.25)",
     },
-    scoreValue: {
-      fontSize: "30px",
-      fontWeight: 950,
-    },
+    scoreValue: { fontSize: "30px", fontWeight: 950 },
     scoreLabel: {
       margin: "14px 0 0",
       color: "#cbd5e1",
@@ -493,6 +625,7 @@ const AtsAnalysisPage = () => {
       color: "#cbd5e1",
       lineHeight: 1.75,
       fontSize: "13px",
+      whiteSpace: "pre-line",
     },
     list: {
       margin: "14px 0 0",
@@ -586,7 +719,7 @@ const AtsAnalysisPage = () => {
               <textarea
                 placeholder="Paste the complete job description here..."
                 value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
+                onChange={handleJobDescriptionChange}
                 style={styles.textarea}
                 required
               />
@@ -704,9 +837,7 @@ const AtsAnalysisPage = () => {
                     </span>
                   ))
                 ) : (
-                  <span style={styles.chipRed}>
-                    No missing skills detected
-                  </span>
+                  <span style={styles.chipRed}>No missing skills detected</span>
                 )}
               </div>
             </div>
@@ -736,7 +867,9 @@ const AtsAnalysisPage = () => {
             <div style={styles.scoreBox}>
               <div style={styles.aiScoreCircle}>
                 <div style={styles.scoreInner}>
-                  <div style={styles.scoreValue}>{aiResult.atsScore}%</div>
+                  <div style={styles.scoreValue}>
+                    {aiResult.atsScore ?? aiResult.finalScore ?? 0}%
+                  </div>
                 </div>
               </div>
               <p style={styles.scoreLabel}>AI Industry-Neutral ATS Score</p>

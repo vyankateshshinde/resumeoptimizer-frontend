@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import ResumeBuilderPage from "./pages/ResumeBuilderPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -12,6 +12,16 @@ import ResumeVersionsPage from "./pages/ResumeVersionsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
 
+const ProtectedLayout = () => {
+  return (
+    <ProtectedRoute>
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
+    </ProtectedRoute>
+  );
+};
+
 function App() {
   return (
     <Routes>
@@ -19,91 +29,16 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <AppLayout>
-              <DashboardPage />
-            </AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-<Route
-  path="/resume-versions"
-  element={
-    <ProtectedRoute>
-      <AppLayout>
-        <ResumeVersionsPage />
-      </AppLayout>
-    </ProtectedRoute>
-  }
-/>
-      <Route
-        path="/upload-resume"
-        element={
-          <ProtectedRoute>
-            <AppLayout>
-              <ResumeUploadPage />
-            </AppLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-  path="/resume-builder"
-  element={
-    <ProtectedRoute>
-      <AppLayout>
-        <ResumeBuilderPage />
-      </AppLayout>
-    </ProtectedRoute>
-  }
-/>
-
-      <Route
-        path="/ats-analysis"
-        element={
-          <ProtectedRoute>
-            <AppLayout>
-              <AtsAnalysisPage />
-            </AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/ats-history"
-        element={
-          <ProtectedRoute>
-            <AppLayout>
-              <AtsHistoryPage />
-            </AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/ai-recommendations"
-        element={
-          <ProtectedRoute>
-            <AppLayout>
-              <AiRecommendationsPage />
-            </AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/prompt-editor"
-        element={
-          <ProtectedRoute>
-            <AppLayout>
-              <PromptResumeEditorPage />
-            </AppLayout>
-          </ProtectedRoute>
-        }
-      />
+      <Route element={<ProtectedLayout />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/resume-builder" element={<ResumeBuilderPage />} />
+        <Route path="/upload-resume" element={<ResumeUploadPage />} />
+        <Route path="/ats-analysis" element={<AtsAnalysisPage />} />
+        <Route path="/ats-history" element={<AtsHistoryPage />} />
+        <Route path="/ai-recommendations" element={<AiRecommendationsPage />} />
+        <Route path="/prompt-editor" element={<PromptResumeEditorPage />} />
+        <Route path="/resume-versions" element={<ResumeVersionsPage />} />
+      </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

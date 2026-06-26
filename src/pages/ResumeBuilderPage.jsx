@@ -10,60 +10,101 @@ import {
   FileText,
   Wand2,
   Save,
+  CheckCircle2,
+  History,
 } from "lucide-react";
 import axiosInstance from "../api/axiosInstance";
 
 const ResumeBuilderPage = () => {
   const [resumes, setResumes] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [history, setHistory] = useState([]);
   const [resumeId, setResumeId] = useState("");
   const [jobDescription, setJobDescription] = useState("");
-  const [templateName, setTemplateName] = useState("ATS Template 1");
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templateName, setTemplateName] = useState("ATS Professional");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [generatedResume, setGeneratedResume] = useState(null);
-
-  const templates = [
-    "ATS Template 1",
-    "Modern ATS Template",
-    "Tech Developer Template",
-    "Corporate Professional Template",
-    "Minimal Clean Template",
-    "Senior Engineer Template",
-  ];
+  const [latestHistoryId, setLatestHistoryId] = useState(null);
 
   useEffect(() => {
-    const fetchResumes = async () => {
-      try {
-        const response = await axiosInstance.get("/api/resume/my-resumes");
-        const list = Array.isArray(response.data) ? response.data : [];
-
-        setResumes(list);
-
-        const savedResume = JSON.parse(
-          localStorage.getItem("selectedResume") || "null"
-        );
-
-        if (
-          savedResume?.id &&
-          list.some((resume) => resume.id === savedResume.id)
-        ) {
-          setResumeId(savedResume.id);
-        } else if (list.length > 0) {
-          setResumeId(list[0].id);
-          localStorage.setItem("selectedResume", JSON.stringify(list[0]));
-        }
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to load resumes");
-      }
-    };
-
     fetchResumes();
+    fetchTemplates();
+    fetchHistory();
   }, []);
+
+  const fetchResumes = async () => {
+    try {
+      const response = await axiosInstance.get("/api/resume/my-resumes");
+      const list = Array.isArray(response.data) ? response.data : [];
+      setResumes(list);
+
+      const savedResume = JSON.parse(localStorage.getItem("selectedResume") || "null");
+
+      if (savedResume?.id && list.some((resume) => resume.id === savedResume.id)) {
+        setResumeId(savedResume.id);
+      } else if (list.length > 0) {
+        setResumeId(list[0].id);
+        localStorage.setItem("selectedResume", JSON.stringify(list[0]));
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load resumes");
+    }
+  };
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await axiosInstance.get("/api/templates");
+      const list = Array.isArray(response.data) ? response.data : [];
+      setTemplates(list);
+
+      if (list.length > 0) {
+        setSelectedTemplate(list[0]);
+        setTemplateName(list[0].templateName);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load templates");
+    }
+  };
+
+  const fetchHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      const response = await axiosInstance.get("/api/resume-builder/history");
+      const list = Array.isArray(response.data) ? response.data : [];
+      setHistory(list);
+      if (list.length > 0) {
+        setLatestHistoryId(list[0].id);
+      }
+      return list;
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load builder history");
+      return [];
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleTemplateSelect = (template) => {
+    setSelectedTemplate(template);
+    setTemplateName(template.templateName);
+    setGeneratedResume(null);
+    setLatestHistoryId(null);
+  };
 
   const handleGenerateResume = async () => {
     if (!resumeId) {
       toast.error("Please select a resume");
+      return;
+    }
+
+    if (!templateName) {
+      toast.error("Please select a template");
       return;
     }
 
@@ -82,10 +123,12 @@ const ResumeBuilderPage = () => {
       });
 
       setGeneratedResume(response.data);
-      localStorage.setItem(
-        "latestGeneratedResume",
-        JSON.stringify(response.data)
-      );
+      localStorage.setItem("latestGeneratedResume", JSON.stringify(response.data));
+
+      const updatedHistory = await fetchHistory();
+      if (updatedHistory.length > 0) {
+        setLatestHistoryId(updatedHistory[0].id);
+      }
 
       toast.success("AI Resume Generated Successfully");
     } catch (error) {
@@ -97,37 +140,17 @@ const ResumeBuilderPage = () => {
   };
 
   const handleSaveVersion = async () => {
-    if (!generatedResume) {
+    if (!latestHistoryId) {
       toast.error("Generate resume first");
-      return;
-    }
-
-    if (!resumeId) {
-      toast.error("Resume ID not found");
       return;
     }
 
     try {
       setSaving(true);
 
-      await axiosInstance.post("/api/resume-versions/save", {
-        resumeId: Number(resumeId),
-        versionName: `${generatedResume.templateName || templateName} Version`,
-        templateName: generatedResume.templateName || templateName,
-        fullResumeText: generatedResume.fullResumeText || "",
-        professionalSummary: generatedResume.professionalSummary || "",
-        skills: Array.isArray(generatedResume.skills)
-          ? generatedResume.skills.join(", ")
-          : generatedResume.skills || "",
-        experienceBullets: Array.isArray(generatedResume.experienceBullets)
-          ? generatedResume.experienceBullets.join("\n")
-          : generatedResume.experienceBullets || "",
-        projectBullets: Array.isArray(generatedResume.projectBullets)
-          ? generatedResume.projectBullets.join("\n")
-          : generatedResume.projectBullets || "",
-        education: generatedResume.education || "",
-        atsScore: 0,
-      });
+      await axiosInstance.post(
+        `/api/resume-builder/history/${latestHistoryId}/save-version`
+      );
 
       toast.success("Resume Version Saved Successfully");
     } catch (error) {
@@ -138,10 +161,25 @@ const ResumeBuilderPage = () => {
     }
   };
 
+  const handleSaveHistoryAsVersion = async (historyId) => {
+    try {
+      setSaving(true);
+
+      await axiosInstance.post(
+        `/api/resume-builder/history/${historyId}/save-version`
+      );
+
+      toast.success("History saved as resume version");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save history as version");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const styles = {
-    wrapper: {
-      color: "#ffffff",
-    },
+    wrapper: { color: "#ffffff" },
     hero: {
       background:
         "linear-gradient(135deg, rgba(139,92,246,.22), rgba(79,70,229,.12))",
@@ -150,15 +188,11 @@ const ResumeBuilderPage = () => {
       padding: "28px",
       marginBottom: "26px",
     },
-    title: {
-      margin: 0,
-      fontSize: "32px",
-      fontWeight: 950,
-    },
+    title: { margin: 0, fontSize: "32px", fontWeight: 950 },
     subtitle: {
       marginTop: "10px",
       color: "#cbd5e1",
-      maxWidth: "860px",
+      maxWidth: "900px",
       lineHeight: 1.6,
       fontSize: "15px",
     },
@@ -188,11 +222,7 @@ const ResumeBuilderPage = () => {
       placeItems: "center",
       marginBottom: "16px",
     },
-    cardTitle: {
-      margin: 0,
-      fontSize: "20px",
-      fontWeight: 900,
-    },
+    cardTitle: { margin: 0, fontSize: "20px", fontWeight: 900 },
     desc: {
       marginTop: "10px",
       color: "#94a3b8",
@@ -229,6 +259,62 @@ const ResumeBuilderPage = () => {
       display: "flex",
       alignItems: "center",
       gap: "10px",
+    },
+    templateGrid: {
+      marginTop: "20px",
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+      gap: "16px",
+    },
+    templateCard: {
+      background: "rgba(2,6,23,.72)",
+      border: "1px solid rgba(139,92,246,.18)",
+      borderRadius: "18px",
+      padding: "18px",
+      cursor: "pointer",
+      minHeight: "190px",
+      position: "relative",
+    },
+    selectedTemplateCard: {
+      border: "1px solid rgba(34,197,94,.75)",
+      boxShadow: "0 0 0 1px rgba(34,197,94,.35)",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,.12), rgba(15,23,42,.95))",
+    },
+    templateHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      gap: "10px",
+      alignItems: "flex-start",
+    },
+    templateNameStyle: {
+      margin: 0,
+      fontSize: "16px",
+      fontWeight: 950,
+      color: "#ffffff",
+    },
+    templateType: {
+      marginTop: "8px",
+      display: "inline-flex",
+      padding: "6px 10px",
+      borderRadius: "999px",
+      background: "rgba(139,92,246,.16)",
+      border: "1px solid rgba(139,92,246,.28)",
+      color: "#ddd6fe",
+      fontSize: "12px",
+      fontWeight: 850,
+    },
+    templateDesc: {
+      marginTop: "12px",
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+    },
+    score: {
+      marginTop: "12px",
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: 900,
     },
     formGrid: {
       marginTop: "20px",
@@ -311,6 +397,16 @@ const ResumeBuilderPage = () => {
       justifyContent: "center",
       gap: "9px",
     },
+    selectedBox: {
+      marginTop: "18px",
+      padding: "16px",
+      borderRadius: "16px",
+      background: "rgba(34,197,94,.10)",
+      border: "1px solid rgba(34,197,94,.25)",
+      color: "#bbf7d0",
+      fontSize: "13px",
+      lineHeight: 1.6,
+    },
     previewGrid: {
       display: "grid",
       gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
@@ -384,13 +480,20 @@ const ResumeBuilderPage = () => {
       fontSize: "13px",
       lineHeight: 1.6,
     },
+    historyCard: {
+      background: "rgba(2,6,23,.72)",
+      border: "1px solid rgba(139,92,246,.18)",
+      borderRadius: "18px",
+      padding: "18px",
+      marginTop: "14px",
+    },
   };
 
   const cards = [
     {
       title: "Build With AI",
       description:
-        "Upload resume, paste job description, generate optimized resume, refine with prompts, and save versions.",
+        "Select a template, paste job description, generate optimized resume, refine and save versions.",
       icon: Sparkles,
       button: "Use AI Builder Below",
     },
@@ -412,9 +515,9 @@ const ResumeBuilderPage = () => {
     {
       title: "Resume Templates",
       description:
-        "Choose from ATS-friendly templates suitable for software, backend, frontend, full stack, and corporate roles.",
+        "Choose from 8 ATS-friendly templates for multiple industries and career levels.",
       icon: LayoutTemplate,
-      button: "Coming Soon",
+      button: "Available Below",
     },
   ];
 
@@ -423,8 +526,9 @@ const ResumeBuilderPage = () => {
       <div style={styles.hero}>
         <h1 style={styles.title}>Resume Builder</h1>
         <p style={styles.subtitle}>
-          Build ATS-friendly resumes using AI, job descriptions, prompt-based
-          refinement, templates, resume versions, and download-ready formats.
+          Build ATS-friendly resumes using AI, job descriptions, template
+          selection, prompt-based refinement, resume versions, and
+          download-ready formats.
         </p>
       </div>
 
@@ -455,6 +559,59 @@ const ResumeBuilderPage = () => {
             </div>
           );
         })}
+      </div>
+
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>
+          <LayoutTemplate size={22} color="#c4b5fd" />
+          Select Resume Template
+        </h2>
+
+        <div style={styles.templateGrid}>
+          {templates.length > 0 ? (
+            templates.map((template) => {
+              const isSelected =
+                selectedTemplate?.id === template.id ||
+                templateName === template.templateName;
+
+              return (
+                <div
+                  key={template.id}
+                  onClick={() => handleTemplateSelect(template)}
+                  style={{
+                    ...styles.templateCard,
+                    ...(isSelected ? styles.selectedTemplateCard : {}),
+                  }}
+                >
+                  <div style={styles.templateHeader}>
+                    <h3 style={styles.templateNameStyle}>
+                      {template.templateName}
+                    </h3>
+
+                    {isSelected && <CheckCircle2 size={20} color="#86efac" />}
+                  </div>
+
+                  <span style={styles.templateType}>{template.templateType}</span>
+
+                  <p style={styles.templateDesc}>{template.description}</p>
+
+                  <div style={styles.score}>
+                    Market Fit Score: {template.marketFitScore}%
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div style={styles.emptyBox}>No templates found.</div>
+          )}
+        </div>
+
+        {selectedTemplate && (
+          <div style={styles.selectedBox}>
+            Selected Template: <strong>{selectedTemplate.templateName}</strong> ·
+            Best For: {selectedTemplate.templateType}
+          </div>
+        )}
       </div>
 
       <div style={styles.section}>
@@ -491,15 +648,15 @@ const ResumeBuilderPage = () => {
           </div>
 
           <div>
-            <label style={styles.label}>Choose Template</label>
+            <label style={styles.label}>Selected Template</label>
             <select
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
               style={styles.select}
             >
               {templates.map((template) => (
-                <option key={template} value={template}>
-                  {template}
+                <option key={template.id} value={template.templateName}>
+                  {template.templateName}
                 </option>
               ))}
             </select>
@@ -635,6 +792,48 @@ const ResumeBuilderPage = () => {
           />
         </div>
       )}
+
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>
+          <History size={22} color="#c4b5fd" />
+          Resume Builder History
+        </h2>
+
+        {historyLoading ? (
+          <div style={styles.emptyBox}>Loading history...</div>
+        ) : history.length > 0 ? (
+          history.map((item) => (
+            <div key={item.id} style={styles.historyCard}>
+              <h3 style={styles.previewTitle}>
+                {item.templateName || "Generated Resume"}
+              </h3>
+
+              <p style={styles.previewText}>
+                Resume ID: {item.resumeId} · Created:{" "}
+                {item.createdAt ? new Date(item.createdAt).toLocaleString() : "N/A"}
+              </p>
+
+              <p style={styles.previewText}>
+                JD:{" "}
+                {(item.jobDescription || "").length > 180
+                  ? `${item.jobDescription.substring(0, 180)}...`
+                  : item.jobDescription}
+              </p>
+
+              <button
+                style={{ ...styles.saveBtn, marginTop: "12px", flex: "unset" }}
+                onClick={() => handleSaveHistoryAsVersion(item.id)}
+                disabled={saving}
+              >
+                <Save size={16} />
+                Save As Version
+              </button>
+            </div>
+          ))
+        ) : (
+          <div style={styles.emptyBox}>No builder history found.</div>
+        )}
+      </div>
     </div>
   );
 };
