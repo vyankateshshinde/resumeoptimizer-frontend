@@ -1,296 +1,125 @@
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Brain,
-  LayoutDashboard,
-  UploadCloud,
-  BarChart3,
-  Sparkles,
+  FilePenLine,
   FileText,
+  History,
+  LayoutDashboard,
   LogOut,
   Menu,
-  History,
+  Sparkles,
+  UploadCloud,
   X,
-  Hammer,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
+const navItems = [
+  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Resume Builder", path: "/resume-builder", icon: FilePenLine },
+  { label: "Upload Resume", path: "/upload-resume", icon: UploadCloud },
+  { label: "AI ATS Analysis", path: "/ats-analysis", icon: Sparkles },
+  { label: "ATS History", path: "/ats-history", icon: History },
+  { label: "Resume Versions", path: "/resume-versions", icon: FileText },
+];
+
 const AppLayout = ({ children }) => {
-  const [open, setOpen] = useState(false);
-  const [width, setWidth] = useState(window.innerWidth);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const resize = () => setWidth(window.innerWidth);
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
-
-  const isMobile = width <= 900;
-
   const handleLogout = () => {
     logout();
-    navigate("/login");
-  };
-
-  const navItems = [
-    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-    { name: "Resume Builder", path: "/resume-builder", icon: Hammer },
-    { name: "Upload Resume", path: "/upload-resume", icon: UploadCloud },
-    { name: "ATS Analysis", path: "/ats-analysis", icon: BarChart3 },
-    { name: "ATS History", path: "/ats-history", icon: History },
-    { name: "AI Recommendations", path: "/ai-recommendations", icon: Sparkles },
-    { name: "Resume Versions", path: "/resume-versions", icon: FileText },
-  ];
-
-  const styles = {
-    page: {
-      minHeight: "100vh",
-      width: "100%",
-      background: "#020617",
-      color: "#ffffff",
-      fontFamily: "Inter, system-ui, sans-serif",
-    },
-    overlay: {
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,.6)",
-      zIndex: 20,
-      display: isMobile && open ? "block" : "none",
-    },
-    sidebar: {
-      width: "260px",
-      minHeight: "100vh",
-      background: "rgba(15,23,42,.98)",
-      borderRight: "1px solid rgba(139,92,246,.18)",
-      padding: "22px",
-      display: "flex",
-      flexDirection: "column",
-      position: "fixed",
-      left: 0,
-      top: 0,
-      bottom: 0,
-      zIndex: 30,
-      boxSizing: "border-box",
-      transform: isMobile ? (open ? "translateX(0)" : "translateX(-100%)") : "translateX(0)",
-      transition: "0.25s ease",
-    },
-    logoBox: {
-      display: "flex",
-      alignItems: "center",
-      gap: "12px",
-      marginBottom: "30px",
-    },
-    logoIcon: {
-      width: "44px",
-      height: "44px",
-      borderRadius: "14px",
-      background: "linear-gradient(135deg,#8b5cf6,#4f46e5)",
-      display: "grid",
-      placeItems: "center",
-    },
-    logoTitle: {
-      margin: 0,
-      fontSize: "18px",
-      fontWeight: 900,
-    },
-    logoSub: {
-      margin: "2px 0 0",
-      color: "#a78bfa",
-      fontSize: "13px",
-      fontWeight: 800,
-    },
-    closeBtn: {
-      marginLeft: "auto",
-      display: isMobile ? "grid" : "none",
-      placeItems: "center",
-      width: "34px",
-      height: "34px",
-      borderRadius: "10px",
-      border: "1px solid rgba(139,92,246,.22)",
-      background: "rgba(30,41,59,.7)",
-      color: "#fff",
-      cursor: "pointer",
-    },
-    nav: {
-      display: "grid",
-      gap: "9px",
-    },
-    navLink: {
-      display: "flex",
-      alignItems: "center",
-      gap: "11px",
-      padding: "12px 13px",
-      borderRadius: "13px",
-      color: "#cbd5e1",
-      textDecoration: "none",
-      fontWeight: 750,
-      fontSize: "14px",
-    },
-    navLinkActive: {
-      background: "linear-gradient(90deg, rgba(139,92,246,.22), rgba(79,70,229,.16))",
-      color: "#ffffff",
-      border: "1px solid rgba(139,92,246,.28)",
-    },
-    logoutBtn: {
-      marginTop: "auto",
-      height: "46px",
-      border: "1px solid rgba(239,68,68,.25)",
-      borderRadius: "13px",
-      background: "rgba(239,68,68,.10)",
-      color: "#fecaca",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "10px",
-      fontWeight: 850,
-      cursor: "pointer",
-    },
-    main: {
-      marginLeft: isMobile ? 0 : "260px",
-      width: isMobile ? "100%" : "calc(100% - 260px)",
-      minHeight: "100vh",
-      background:
-        "radial-gradient(circle at top right, rgba(124,58,237,.16), transparent 30%), #020617",
-      boxSizing: "border-box",
-    },
-    header: {
-      minHeight: isMobile ? "74px" : "86px",
-      borderBottom: "1px solid rgba(139,92,246,.16)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: "14px",
-      padding: isMobile ? "14px 16px" : "0 28px",
-      background: "rgba(2,6,23,.78)",
-      backdropFilter: "blur(18px)",
-      position: "sticky",
-      top: 0,
-      zIndex: 10,
-      boxSizing: "border-box",
-    },
-    menuBtn: {
-      display: isMobile ? "grid" : "none",
-      placeItems: "center",
-      border: "none",
-      background: "rgba(15,23,42,.9)",
-      color: "#ffffff",
-      borderRadius: "12px",
-      width: "42px",
-      height: "42px",
-      cursor: "pointer",
-      flexShrink: 0,
-    },
-    headerText: {
-      minWidth: 0,
-      flex: 1,
-    },
-    headerTitle: {
-      margin: 0,
-      fontSize: isMobile ? "16px" : "21px",
-      fontWeight: 900,
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-    },
-    headerSub: {
-      margin: "4px 0 0",
-      color: "#94a3b8",
-      fontSize: isMobile ? "12px" : "13px",
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-    },
-    ctaBtn: {
-      height: "40px",
-      padding: "0 14px",
-      borderRadius: "12px",
-      background: "linear-gradient(90deg,#8b5cf6,#4f46e5)",
-      color: "#ffffff",
-      textDecoration: "none",
-      display: isMobile ? "none" : "flex",
-      alignItems: "center",
-      fontWeight: 850,
-      fontSize: "13px",
-      flexShrink: 0,
-    },
-    content: {
-      padding: isMobile ? "16px" : "26px",
-      boxSizing: "border-box",
-      width: "100%",
-      maxWidth: "100%",
-      overflowX: "hidden",
-    },
+    navigate("/login", { replace: true });
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.overlay} onClick={() => setOpen(false)} />
+    <div className="app-shell">
+      <style>{styles}</style>
+      <button className="app-mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation">
+        <Menu size={22} />
+      </button>
 
-      <aside style={styles.sidebar}>
-        <div style={styles.logoBox}>
-          <div style={styles.logoIcon}>
-            <Brain size={24} />
-          </div>
+      {mobileOpen && <button className="app-overlay" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
 
-          <div>
-            <h2 style={styles.logoTitle}>AI Resume</h2>
-            <p style={styles.logoSub}>Optimizer</p>
-          </div>
-
-          <button style={styles.closeBtn} onClick={() => setOpen(false)}>
-            <X size={18} />
-          </button>
+      <aside className={`app-sidebar ${mobileOpen ? "open" : ""}`}>
+        <div className="app-brand">
+          <div className="app-brand-icon"><Brain size={27} /></div>
+          <div><strong>AI Resume</strong><span>Optimizer</span></div>
+          <button className="app-close" onClick={() => setMobileOpen(false)} aria-label="Close navigation"><X size={20} /></button>
         </div>
 
-        <nav style={styles.nav}>
+        <nav className="app-nav">
           {navItems.map((item) => {
             const Icon = item.icon;
-
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
-                onClick={() => setOpen(false)}
-                style={({ isActive }) => ({
-                  ...styles.navLink,
-                  ...(isActive ? styles.navLinkActive : {}),
-                })}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) => `app-nav-item ${isActive ? "active" : ""}`}
               >
-                <Icon size={19} />
-                <span>{item.name}</span>
+                <Icon size={21} />
+                <span>{item.label}</span>
               </NavLink>
             );
           })}
         </nav>
 
-        <button onClick={handleLogout} style={styles.logoutBtn}>
-          <LogOut size={19} />
-          Logout
+        <button className="app-logout" onClick={handleLogout}>
+          <LogOut size={21} /> Logout
         </button>
       </aside>
 
-      <main style={styles.main}>
-        <header style={styles.header}>
-          <button style={styles.menuBtn} onClick={() => setOpen(true)}>
-            <Menu size={22} />
-          </button>
-
-          <div style={styles.headerText}>
-            <h1 style={styles.headerTitle}>Resume Intelligence Platform</h1>
-            <p style={styles.headerSub}>Analyze, optimize and improve resumes with AI.</p>
+      <div className="app-main-wrap">
+        <header className="app-topbar">
+          <div>
+            <h1>Resume Intelligence Platform</h1>
+            <p>Analyze, optimize and improve resumes with AI.</p>
           </div>
-
-          <Link to="/resume-builder" style={styles.ctaBtn}>
-            Build Resume
-          </Link>
+          <button className="app-build-button" onClick={() => navigate("/resume-builder")}>
+            <Sparkles size={17} /> Build Resume
+          </button>
         </header>
-
-        <section style={styles.content}>{children}</section>
-      </main>
+        <main className="app-content">{children}</main>
+      </div>
     </div>
   );
 };
+
+const styles = `
+  * { box-sizing: border-box; }
+  .app-shell { min-height: 100vh; display: flex; background: #020617; color: #f8fafc; font-family: Inter, system-ui, sans-serif; }
+  .app-sidebar { position: fixed; inset: 0 auto 0 0; width: 336px; z-index: 30; display: flex; flex-direction: column; padding: 28px; background: #0f172a; border-right: 1px solid rgba(148,163,184,.15); }
+  .app-brand { display: flex; align-items: center; gap: 14px; margin: 0 0 38px; }
+  .app-brand-icon { width: 57px; height: 57px; display: grid; place-items: center; color: white; border-radius: 17px; background: linear-gradient(135deg,#8b5cf6,#4f46e5); }
+  .app-brand strong { display: block; font-size: 22px; letter-spacing: -.5px; }
+  .app-brand span { display: block; color: #a78bfa; font-weight: 850; margin-top: 2px; }
+  .app-close, .app-mobile-menu { display: none; }
+  .app-nav { display: grid; gap: 10px; }
+  .app-nav-item { display: flex; align-items: center; gap: 15px; min-height: 54px; padding: 0 16px; color: #cbd5e1; text-decoration: none; border-radius: 16px; font-weight: 800; transition: .18s ease; }
+  .app-nav-item:hover { background: rgba(71,85,105,.3); color: white; }
+  .app-nav-item.active { color: white; background: linear-gradient(135deg,rgba(109,40,217,.32),rgba(79,70,229,.18)); border: 1px solid rgba(139,92,246,.38); }
+  .app-logout { margin-top: auto; min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 11px; border-radius: 16px; color: #fecaca; background: rgba(127,29,29,.15); border: 1px solid rgba(239,68,68,.32); font: inherit; font-weight: 900; cursor: pointer; }
+  .app-main-wrap { width: calc(100% - 336px); min-height: 100vh; margin-left: 336px; background: radial-gradient(circle at 75% 0%,rgba(124,58,237,.16),transparent 34%), #020617; }
+  .app-topbar { min-height: 110px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 36px; border-bottom: 1px solid rgba(148,163,184,.13); background: rgba(2,6,23,.5); }
+  .app-topbar h1 { margin: 0; color: #f8fafc; font-size: clamp(23px,3vw,31px); letter-spacing: -.8px; }
+  .app-topbar p { margin: 7px 0 0; color: #94a3b8; }
+  .app-build-button { min-height: 51px; border: 0; border-radius: 15px; padding: 0 18px; color: white; background: linear-gradient(135deg,#8b5cf6,#4f46e5); display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 900; cursor: pointer; box-shadow: 0 14px 28px rgba(79,70,229,.22); }
+  .app-content { padding: 28px 36px 46px; }
+  @media (max-width: 900px) {
+    .app-sidebar { transform: translateX(-101%); width: min(336px,86vw); transition: transform .2s ease; box-shadow: 20px 0 70px rgba(0,0,0,.4); }
+    .app-sidebar.open { transform: translateX(0); }
+    .app-main-wrap { width: 100%; margin-left: 0; }
+    .app-mobile-menu { display: grid; place-items: center; position: fixed; z-index: 20; left: 14px; top: 14px; width: 42px; height: 42px; color: white; border: 1px solid rgba(148,163,184,.23); border-radius: 12px; background: #0f172a; cursor: pointer; }
+    .app-overlay { position: fixed; z-index: 25; inset: 0; border: 0; background: rgba(2,6,23,.6); }
+    .app-close { display: grid; place-items: center; margin-left: auto; color: #cbd5e1; background: transparent; border: 0; cursor: pointer; }
+    .app-topbar { padding-left: 68px; }
+  }
+  @media (max-width: 620px) {
+    .app-topbar { align-items: flex-start; flex-direction: column; padding: 18px 18px 18px 68px; }
+    .app-content { padding: 18px; }
+  }
+`;
 
 export default AppLayout;

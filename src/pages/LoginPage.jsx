@@ -5,45 +5,35 @@ import {
   Brain,
   Mail,
   Lock,
-  Eye,
-  EyeOff,
   FileSearch,
-  Sparkles,
+  WandSparkles,
   BarChart3,
-  ShieldCheck,
+  Eye,
 } from "lucide-react";
 import axiosInstance from "../api/axiosInstance";
 import { useAuth } from "../context/AuthContext";
+import { purgeLegacySharedWorkspaceCache } from "../utils/userStorage.js";
 
 const LoginPage = () => {
   const [form, setForm] = useState({ email: "", password: "" });
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [screen, setScreen] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+  const [width, setWidth] = useState(window.innerWidth);
+  const [height, setHeight] = useState(window.innerHeight);
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     const resize = () => {
-      setScreen({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
+      setWidth(window.innerWidth);
+      setHeight(window.innerHeight);
     };
-
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
   }, []);
 
-  const isMobile = screen.width <= 640;
-  const isTablet = screen.width <= 1024;
-  const isShort = screen.height <= 760;
-
-  const showHero = !isTablet && screen.height >= 720;
+  const isMobile = width <= 640;
+  const isTablet = width <= 1024;
+  const isShort = height <= 740;
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -53,15 +43,13 @@ const LoginPage = () => {
     e.preventDefault();
 
     try {
-      setLoading(true);
       const response = await axiosInstance.post("/api/auth/login", form);
+      purgeLegacySharedWorkspaceCache();
       login(response.data.token);
       toast.success("Login successful");
       navigate("/dashboard");
     } catch {
       toast.error("Invalid email or password");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -69,68 +57,71 @@ const LoginPage = () => {
     page: {
       height: "100vh",
       width: "100vw",
+      overflow: "hidden",
       background: "#020617",
       color: "#ffffff",
       fontFamily: "Inter, system-ui, sans-serif",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      padding: isMobile ? "12px" : "20px",
+      padding: isMobile ? "14px" : isTablet ? "22px" : "36px 64px",
       position: "relative",
-      overflow: "hidden",
-      boxSizing: "border-box",
     },
     bg: {
       position: "absolute",
       inset: 0,
       background:
-        "radial-gradient(circle at 12% 20%, rgba(124,58,237,.32), transparent 34%), radial-gradient(circle at 88% 82%, rgba(79,70,229,.25), transparent 38%)",
+        "radial-gradient(circle at 10% 20%, rgba(124,58,237,.32), transparent 34%), radial-gradient(circle at 90% 80%, rgba(79,70,229,.28), transparent 38%)",
     },
     container: {
       width: "100%",
-      maxWidth: showHero ? "1060px" : "400px",
+      maxWidth: "1280px",
+      height: "100%",
+      maxHeight: isMobile ? "none" : "760px",
       display: "grid",
-      gridTemplateColumns: showHero ? "1fr 400px" : "1fr",
-      gap: showHero ? "44px" : "0",
+      gridTemplateColumns: isTablet ? "1fr" : "1.08fr 0.92fr",
+      gap: isMobile ? "12px" : isTablet ? "22px" : "64px",
       alignItems: "center",
       position: "relative",
       zIndex: 1,
     },
+    left: {
+      display: isMobile ? "block" : "block",
+    },
     logo: {
       display: "flex",
       alignItems: "center",
-      gap: "10px",
-      marginBottom: showHero ? "24px" : "14px",
-      justifyContent: showHero ? "flex-start" : "center",
+      gap: "12px",
+      marginBottom: isMobile ? "12px" : isShort ? "22px" : "44px",
     },
     logoIcon: {
-      width: showHero ? "44px" : "38px",
-      height: showHero ? "44px" : "38px",
-      borderRadius: "13px",
+      width: isMobile ? "38px" : "50px",
+      height: isMobile ? "38px" : "50px",
+      borderRadius: isMobile ? "12px" : "16px",
       background: "linear-gradient(135deg,#8b5cf6,#4f46e5)",
       display: "grid",
       placeItems: "center",
-      boxShadow: "0 12px 30px rgba(124,58,237,.35)",
+      boxShadow: "0 14px 35px rgba(124,58,237,.35)",
       flexShrink: 0,
     },
     logoTitle: {
-      fontSize: showHero ? "18px" : "16px",
+      fontSize: isMobile ? "15px" : "20px",
       fontWeight: 900,
       lineHeight: 1.05,
     },
     logoSubtitle: {
       color: "#a78bfa",
-      fontSize: "12px",
+      fontSize: isMobile ? "12px" : "15px",
       fontWeight: 800,
-      marginTop: "2px",
+      marginTop: "3px",
     },
     heroTitle: {
       margin: 0,
-      fontSize: isShort ? "42px" : "50px",
-      lineHeight: 1.05,
+      fontSize: isMobile ? "30px" : isTablet ? "42px" : isShort ? "54px" : "66px",
+      lineHeight: 1.06,
       fontWeight: 950,
-      letterSpacing: "-1.3px",
-      maxWidth: "600px",
+      letterSpacing: "-1.6px",
+      maxWidth: "760px",
     },
     gradientText: {
       background: "linear-gradient(90deg,#a78bfa,#818cf8)",
@@ -138,34 +129,35 @@ const LoginPage = () => {
       color: "transparent",
     },
     desc: {
-      marginTop: "14px",
+      marginTop: isMobile ? "10px" : isShort ? "16px" : "24px",
       color: "#cbd5e1",
-      fontSize: "14px",
-      lineHeight: 1.6,
-      maxWidth: "520px",
+      fontSize: isMobile ? "13px" : "17px",
+      lineHeight: isMobile ? 1.45 : 1.7,
+      maxWidth: "650px",
     },
     features: {
-      marginTop: "20px",
+      marginTop: isMobile ? "12px" : isShort ? "20px" : "34px",
       display: "grid",
-      gridTemplateColumns: "repeat(2, 1fr)",
-      gap: "10px",
-      maxWidth: "540px",
+      gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(2, 1fr)",
+      gap: isMobile ? "8px" : "14px",
+      maxWidth: "680px",
     },
     feature: {
       display: "flex",
       alignItems: "center",
-      gap: "8px",
-      padding: "10px 12px",
-      borderRadius: "14px",
+      gap: isMobile ? "7px" : "12px",
+      padding: isMobile ? "8px 9px" : "14px 16px",
+      borderRadius: isMobile ? "12px" : "18px",
       background: "rgba(15,23,42,.62)",
       border: "1px solid rgba(139,92,246,.18)",
       color: "#e2e8f0",
       fontWeight: 700,
-      fontSize: "13px",
+      fontSize: isMobile ? "11.5px" : "15px",
+      minWidth: 0,
     },
     featureIcon: {
-      width: "28px",
-      height: "28px",
+      width: isMobile ? "24px" : "34px",
+      height: isMobile ? "24px" : "34px",
       borderRadius: "999px",
       background: "rgba(139,92,246,.20)",
       color: "#a78bfa",
@@ -173,57 +165,51 @@ const LoginPage = () => {
       placeItems: "center",
       flexShrink: 0,
     },
+    cardWrapper: {
+      width: "100%",
+      display: "flex",
+      justifyContent: isTablet ? "center" : "flex-end",
+    },
     card: {
       width: "100%",
-      background: "rgba(15,23,42,.92)",
+      maxWidth: isMobile ? "100%" : "500px",
+      background: "rgba(15,23,42,.88)",
       border: "1px solid rgba(139,92,246,.25)",
       backdropFilter: "blur(24px)",
-      borderRadius: isMobile ? "20px" : "24px",
-      padding: isMobile ? "18px" : "24px",
-      boxShadow: "0 22px 70px rgba(76,29,149,.34)",
-      boxSizing: "border-box",
-    },
-    cardLogo: {
-      display: showHero ? "none" : "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "10px",
-      marginBottom: "14px",
+      borderRadius: isMobile ? "20px" : "32px",
+      padding: isMobile ? "18px" : isShort ? "30px" : "44px",
+      boxShadow: "0 25px 80px rgba(76,29,149,.38)",
     },
     cardTitle: {
       margin: 0,
-      fontSize: isMobile ? "24px" : "28px",
+      fontSize: isMobile ? "23px" : "34px",
       fontWeight: 900,
       lineHeight: 1.1,
-      textAlign: showHero ? "left" : "center",
     },
     cardSubtitle: {
       color: "#94a3b8",
-      marginTop: "6px",
-      fontSize: isMobile ? "12.5px" : "13.5px",
-      lineHeight: 1.45,
-      textAlign: showHero ? "left" : "center",
+      marginTop: isMobile ? "6px" : "12px",
+      fontSize: isMobile ? "12.5px" : "16px",
     },
     form: {
-      marginTop: "18px",
+      marginTop: isMobile ? "16px" : "32px",
       display: "grid",
-      gap: "11px",
+      gap: isMobile ? "12px" : "22px",
     },
     label: {
       color: "#cbd5e1",
-      fontSize: "12px",
-      marginBottom: "5px",
+      fontSize: isMobile ? "12px" : "15px",
+      marginBottom: isMobile ? "6px" : "10px",
       display: "block",
-      fontWeight: 800,
     },
     inputBox: {
-      height: isMobile ? "40px" : "44px",
+      height: isMobile ? "42px" : "58px",
       display: "flex",
       alignItems: "center",
       background: "rgba(30,41,59,.92)",
       border: "1px solid #334155",
-      borderRadius: "12px",
-      padding: "0 12px",
+      borderRadius: isMobile ? "12px" : "16px",
+      padding: isMobile ? "0 12px" : "0 18px",
     },
     input: {
       width: "100%",
@@ -231,62 +217,38 @@ const LoginPage = () => {
       border: "none",
       outline: "none",
       color: "#ffffff",
-      fontSize: "13px",
-      marginLeft: "9px",
+      fontSize: isMobile ? "13px" : "16px",
+      marginLeft: "12px",
       minWidth: 0,
-    },
-    eyeBtn: {
-      background: "transparent",
-      border: "none",
-      cursor: "pointer",
-      color: "#94a3b8",
-      display: "flex",
-      alignItems: "center",
-      padding: 0,
     },
     forgot: {
       textAlign: "right",
       color: "#a78bfa",
-      fontSize: "12px",
-      marginTop: "5px",
-      fontWeight: 850,
-      cursor: "pointer",
+      fontSize: isMobile ? "12px" : "14px",
+      marginTop: isMobile ? "6px" : "10px",
     },
     button: {
       width: "100%",
-      height: isMobile ? "42px" : "46px",
+      height: isMobile ? "44px" : "58px",
       border: "none",
-      borderRadius: "12px",
+      borderRadius: isMobile ? "12px" : "16px",
       color: "#ffffff",
-      fontSize: "14px",
+      fontSize: isMobile ? "15px" : "18px",
       fontWeight: 900,
-      cursor: loading ? "not-allowed" : "pointer",
-      opacity: loading ? 0.7 : 1,
+      cursor: "pointer",
       background: "linear-gradient(90deg,#8b5cf6,#4f46e5)",
-      boxShadow: "0 15px 35px rgba(124,58,237,.30)",
-      marginTop: "2px",
+      boxShadow: "0 18px 40px rgba(124,58,237,.38)",
     },
-    registerText: {
+    register: {
       textAlign: "center",
       color: "#94a3b8",
-      marginTop: "12px",
-      fontSize: "12.5px",
+      marginTop: isMobile ? "14px" : "28px",
+      fontSize: isMobile ? "12.5px" : "15px",
     },
-    link: {
+    registerLink: {
       color: "#a78bfa",
       fontWeight: 900,
       textDecoration: "none",
-    },
-    footerNote: {
-      marginTop: "12px",
-      padding: "9px",
-      borderRadius: "12px",
-      background: "rgba(139,92,246,.10)",
-      border: "1px solid rgba(139,92,246,.18)",
-      color: "#cbd5e1",
-      fontSize: "12px",
-      lineHeight: 1.4,
-      textAlign: "center",
     },
   };
 
@@ -302,43 +264,10 @@ const LoginPage = () => {
       <div style={styles.bg}></div>
 
       <main style={styles.container}>
-        {showHero && (
-          <section>
-            <div style={styles.logo}>
-              <div style={styles.logoIcon}>
-                <Brain size={24} />
-              </div>
-
-              <div>
-                <div style={styles.logoTitle}>AI Resume</div>
-                <div style={styles.logoSubtitle}>Optimizer</div>
-              </div>
-            </div>
-
-            <h1 style={styles.heroTitle}>
-              Optimize your resume.
-              <br />
-              <span style={styles.gradientText}>Land better jobs.</span>
-            </h1>
-
-            <p style={styles.desc}>
-              Analyze resumes against job descriptions, calculate ATS scores,
-              detect missing skills and get AI-powered recommendations.
-            </p>
-
-            <div style={styles.features}>
-              <Feature icon={<FileSearch size={13} />} text="ATS Score Analysis" />
-              <Feature icon={<Sparkles size={13} />} text="AI Recommendations" />
-              <Feature icon={<BarChart3 size={13} />} text="Skill Gap Detection" />
-              <Feature icon={<ShieldCheck size={13} />} text="Secure JWT Access" />
-            </div>
-          </section>
-        )}
-
-        <section style={styles.card}>
-          <div style={styles.cardLogo}>
+        <section style={styles.left}>
+          <div style={styles.logo}>
             <div style={styles.logoIcon}>
-              <Brain size={21} />
+              <Brain size={isMobile ? 22 : 28} />
             </div>
 
             <div>
@@ -347,68 +276,77 @@ const LoginPage = () => {
             </div>
           </div>
 
-          <h2 style={styles.cardTitle}>Welcome Back</h2>
-          <p style={styles.cardSubtitle}>
-            Access ATS reports and AI resume recommendations.
+          <h1 style={styles.heroTitle}>
+            Optimize Your Resume.
+            <br />
+            <span style={styles.gradientText}>Get Your Dream Job.</span>
+          </h1>
+
+          <p style={styles.desc}>
+            AI-powered resume analysis, ATS scoring, skill gap detection and
+            personalized recommendations to help you stand out.
           </p>
 
-          <form onSubmit={handleLogin} style={styles.form}>
-            <div>
-              <label style={styles.label}>Email</label>
-              <div style={styles.inputBox}>
-                <Mail size={14} color="#64748b" />
-                <input
-                  name="email"
-                  type="email"
-                  placeholder="john.doe@example.com"
-                  value={form.email}
-                  onChange={handleChange}
-                  style={styles.input}
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={styles.label}>Password</label>
-              <div style={styles.inputBox}>
-                <Lock size={14} color="#64748b" />
-                <input
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter password"
-                  value={form.password}
-                  onChange={handleChange}
-                  style={styles.input}
-                  required
-                />
-
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={styles.eyeBtn}
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
-
-              <div style={styles.forgot}>Forgot Password?</div>
-            </div>
-
-            <button type="submit" style={styles.button}>
-              {loading ? "Signing in..." : "Login"}
-            </button>
-          </form>
-
-          <div style={styles.registerText}>
-            Don&apos;t have an account?{" "}
-            <Link to="/register" style={styles.link}>
-              Register
-            </Link>
+          <div style={styles.features}>
+            <Feature icon={<FileSearch size={isMobile ? 13 : 17} />} text="ATS Score Analysis" />
+            <Feature icon={<WandSparkles size={isMobile ? 13 : 17} />} text="AI Recommendations" />
+            <Feature icon={<BarChart3 size={isMobile ? 13 : 17} />} text="Skill Gap Analysis" />
+            <Feature icon={<Lock size={isMobile ? 13 : 17} />} text="Secure Login" />
           </div>
+        </section>
 
-          <div style={styles.footerNote}>
-            Built for developers to improve ATS visibility.
+        <section style={styles.cardWrapper}>
+          <div style={styles.card}>
+            <h2 style={styles.cardTitle}>Welcome Back!</h2>
+            <p style={styles.cardSubtitle}>Sign in to continue your account</p>
+
+            <form onSubmit={handleLogin} style={styles.form}>
+              <div>
+                <label style={styles.label}>Email</label>
+                <div style={styles.inputBox}>
+                  <Mail size={isMobile ? 15 : 18} color="#64748b" />
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="john.doe@example.com"
+                    value={form.email}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={styles.label}>Password</label>
+                <div style={styles.inputBox}>
+                  <Lock size={isMobile ? 15 : 18} color="#64748b" />
+                  <input
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={form.password}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                  />
+                  <Eye size={isMobile ? 15 : 17} color="#64748b" />
+                </div>
+
+                <div style={styles.forgot}>Forgot Password?</div>
+              </div>
+
+              <button type="submit" style={styles.button}>
+                Sign In
+              </button>
+            </form>
+
+            <div style={styles.register}>
+              Don&apos;t have an account?{" "}
+              <Link to="/register" style={styles.registerLink}>
+                Register
+              </Link>
+            </div>
           </div>
         </section>
       </main>

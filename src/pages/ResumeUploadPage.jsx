@@ -4,14 +4,13 @@ import toast from "react-hot-toast";
 import {
   UploadCloud,
   FileText,
-  CheckCircle2,
-  ArrowRight,
   ShieldCheck,
   FileSearch,
   Sparkles,
   BarChart3,
 } from "lucide-react";
 import axiosInstance from "../api/axiosInstance";
+import { setUserStorageItem } from "../utils/userStorage.js";
 
 const ResumeUploadPage = () => {
   const [file, setFile] = useState(null);
@@ -57,7 +56,7 @@ const ResumeUploadPage = () => {
       });
 
       setUploadedResume(res.data);
-      localStorage.setItem("selectedResume", JSON.stringify(res.data));
+      setUserStorageItem("selectedResume", JSON.stringify(res.data));
 
       toast.success("Resume uploaded successfully");
 
