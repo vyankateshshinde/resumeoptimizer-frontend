@@ -12,6 +12,7 @@ import {
   Save,
   CheckCircle2,
   History,
+  Edit3,
 } from "lucide-react";
 import axiosInstance from "../api/axiosInstance";
 
@@ -28,12 +29,34 @@ const ResumeBuilderPage = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [generatedResume, setGeneratedResume] = useState(null);
   const [latestHistoryId, setLatestHistoryId] = useState(null);
+  const [userPrompt, setUserPrompt] = useState("");
+  const [refining, setRefining] = useState(false);
+  const [refineResult, setRefineResult] = useState(null);
 
   useEffect(() => {
     fetchResumes();
     fetchTemplates();
     fetchHistory();
+
+    const savedGeneratedResume = localStorage.getItem("latestGeneratedResume");
+    const savedJobDescription = localStorage.getItem("resumeBuilderJobDescription");
+
+    if (savedGeneratedResume) {
+      try {
+        setGeneratedResume(JSON.parse(savedGeneratedResume));
+      } catch (error) {
+        localStorage.removeItem("latestGeneratedResume");
+      }
+    }
+
+    if (savedJobDescription) {
+      setJobDescription(savedJobDescription);
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("resumeBuilderJobDescription", jobDescription || "");
+  }, [jobDescription]);
 
   const fetchResumes = async () => {
     try {
@@ -77,9 +100,11 @@ const ResumeBuilderPage = () => {
       const response = await axiosInstance.get("/api/resume-builder/history");
       const list = Array.isArray(response.data) ? response.data : [];
       setHistory(list);
+
       if (list.length > 0) {
         setLatestHistoryId(list[0].id);
       }
+
       return list;
     } catch (error) {
       console.error(error);
@@ -93,8 +118,31 @@ const ResumeBuilderPage = () => {
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template);
     setTemplateName(template.templateName);
-    setGeneratedResume(null);
     setLatestHistoryId(null);
+  };
+
+  const handleResumeChange = (e) => {
+    const selectedId = Number(e.target.value);
+    setResumeId(selectedId);
+
+    const selectedResume = resumes.find((resume) => resume.id === selectedId);
+
+    if (selectedResume) {
+      localStorage.setItem("selectedResume", JSON.stringify(selectedResume));
+    }
+  };
+
+  const normalizeArray = (value) => {
+    if (Array.isArray(value)) return value;
+
+    if (typeof value === "string" && value.trim()) {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+
+    return [];
   };
 
   const handleGenerateResume = async () => {
@@ -115,6 +163,7 @@ const ResumeBuilderPage = () => {
 
     try {
       setLoading(true);
+      setRefineResult(null);
 
       const response = await axiosInstance.post("/api/resume-builder/generate", {
         resumeId: Number(resumeId),
@@ -122,10 +171,19 @@ const ResumeBuilderPage = () => {
         templateName,
       });
 
-      setGeneratedResume(response.data);
-      localStorage.setItem("latestGeneratedResume", JSON.stringify(response.data));
+      const normalizedResume = {
+        ...response.data,
+        skills: normalizeArray(response.data.skills),
+        experienceBullets: normalizeArray(response.data.experienceBullets),
+        projectBullets: normalizeArray(response.data.projectBullets),
+        templateName: response.data.templateName || templateName,
+      };
+
+      setGeneratedResume(normalizedResume);
+      localStorage.setItem("latestGeneratedResume", JSON.stringify(normalizedResume));
 
       const updatedHistory = await fetchHistory();
+
       if (updatedHistory.length > 0) {
         setLatestHistoryId(updatedHistory[0].id);
       }
@@ -136,6 +194,50 @@ const ResumeBuilderPage = () => {
       toast.error("Failed to generate resume");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefineResume = async () => {
+    if (!generatedResume) {
+      toast.error("Generate resume first");
+      return;
+    }
+
+    if (!userPrompt.trim()) {
+      toast.error("Please enter prompt to edit resume");
+      return;
+    }
+
+    const currentResumeText =
+      generatedResume.fullResumeText ||
+      buildPlainResumeText(generatedResume);
+
+    try {
+      setRefining(true);
+
+      const response = await axiosInstance.post("/api/prompt-editor/refine", {
+        currentResumeText,
+        jobDescription,
+        userPrompt,
+      });
+
+      const updatedResume = {
+        ...generatedResume,
+        fullResumeText:
+          response.data.updatedResumeText ||
+          response.data.fullResumeText ||
+          currentResumeText,
+      };
+
+      setGeneratedResume(updatedResume);
+      setRefineResult(response.data);
+      localStorage.setItem("latestGeneratedResume", JSON.stringify(updatedResume));
+      toast.success("Resume refined successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to refine resume");
+    } finally {
+      setRefining(false);
     }
   };
 
@@ -176,6 +278,242 @@ const ResumeBuilderPage = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const buildPlainResumeText = (resume) => {
+    if (!resume) return "";
+
+    return [
+      "PROFESSIONAL SUMMARY",
+      resume.professionalSummary || "",
+      "",
+      "SKILLS",
+      normalizeArray(resume.skills).join(", "),
+      "",
+      "EXPERIENCE",
+      normalizeArray(resume.experienceBullets).map((item) => `• ${item}`).join("\n"),
+      "",
+      "PROJECTS",
+      normalizeArray(resume.projectBullets).map((item) => `• ${item}`).join("\n"),
+      "",
+      "EDUCATION",
+      resume.education || "",
+    ].join("\n");
+  };
+
+  const renderList = (items) => {
+    const list = normalizeArray(items);
+
+    if (!list.length) {
+      return <li>No content generated</li>;
+    }
+
+    return list.map((item, index) => <li key={index}>{item}</li>);
+  };
+
+  const renderSkillChips = (skills) => {
+    const list = normalizeArray(skills);
+
+    if (!list.length) {
+      return <span style={styles.resumeChip}>No skills generated</span>;
+    }
+
+    return list.map((skill, index) => (
+      <span key={index} style={styles.resumeChip}>
+        {skill}
+      </span>
+    ));
+  };
+
+  const renderFullTextBlock = (text) => {
+    if (!text) return null;
+
+    return (
+      <div style={styles.resumeSection}>
+        <h3 style={styles.resumeSectionTitle}>Optimized Resume Text</h3>
+        <p style={styles.resumeTextBlock}>{text}</p>
+      </div>
+    );
+  };
+
+  const renderTemplatePreview = () => {
+    if (!generatedResume) return null;
+
+    const activeTemplate = generatedResume.templateName || templateName || "ATS Professional";
+    const templateLower = activeTemplate.toLowerCase();
+    const fullText = generatedResume.fullResumeText || "";
+
+    if (templateLower.includes("modern") || templateLower.includes("software")) {
+      return (
+        <div style={styles.resumePaperModern}>
+          <div style={styles.resumeModernTop}>
+            <div>
+              <h1 style={styles.resumeName}>Vyankatesh Shinde</h1>
+              <p style={styles.resumeRole}>Java Full Stack Developer</p>
+            </div>
+            <div style={styles.resumeContact}>
+              <p>Java · Spring Boot · React.js</p>
+              <p>Microservices · Kafka · AWS</p>
+            </div>
+          </div>
+
+          <div style={styles.resumeTwoColumn}>
+            <div style={styles.resumeLeftColumn}>
+              <div style={styles.resumeSection}>
+                <h3 style={styles.resumeSectionTitle}>Profile</h3>
+                <p style={styles.resumeParagraph}>
+                  {generatedResume.professionalSummary || "No summary generated"}
+                </p>
+              </div>
+
+              <div style={styles.resumeSection}>
+                <h3 style={styles.resumeSectionTitle}>Experience</h3>
+                <ul style={styles.resumeList}>
+                  {renderList(generatedResume.experienceBullets)}
+                </ul>
+              </div>
+
+              <div style={styles.resumeSection}>
+                <h3 style={styles.resumeSectionTitle}>Projects</h3>
+                <ul style={styles.resumeList}>
+                  {renderList(generatedResume.projectBullets)}
+                </ul>
+              </div>
+            </div>
+
+            <div style={styles.resumeRightColumn}>
+              <div style={styles.resumeSection}>
+                <h3 style={styles.resumeSectionTitle}>Skills</h3>
+                <div style={styles.resumeChips}>
+                  {renderSkillChips(generatedResume.skills)}
+                </div>
+              </div>
+
+              <div style={styles.resumeSection}>
+                <h3 style={styles.resumeSectionTitle}>Education</h3>
+                <p style={styles.resumeParagraph}>
+                  {generatedResume.education || "No education detected"}
+                </p>
+              </div>
+
+              <div style={styles.resumeSection}>
+                <h3 style={styles.resumeSectionTitle}>Template</h3>
+                <p style={styles.resumeParagraph}>{activeTemplate}</p>
+              </div>
+            </div>
+          </div>
+
+          {renderFullTextBlock(fullText)}
+        </div>
+      );
+    }
+
+    if (templateLower.includes("corporate") || templateLower.includes("clean")) {
+      return (
+        <div style={styles.resumePaperClean}>
+          <div style={styles.resumeCleanHeader}>
+            <h1 style={styles.resumeNameDark}>Vyankatesh Shinde</h1>
+            <p style={styles.resumeRoleDark}>Java Full Stack Developer</p>
+            <p style={styles.resumeContactDark}>
+              Spring Boot | Microservices | React.js | MySQL | MongoDB | Kafka | AWS
+            </p>
+          </div>
+
+          <div style={styles.resumeSectionLight}>
+            <h3 style={styles.resumeSectionTitleDark}>Professional Summary</h3>
+            <p style={styles.resumeParagraphDark}>
+              {generatedResume.professionalSummary || "No summary generated"}
+            </p>
+          </div>
+
+          <div style={styles.resumeSectionLight}>
+            <h3 style={styles.resumeSectionTitleDark}>Technical Skills</h3>
+            <div style={styles.resumeChips}>
+              {normalizeArray(generatedResume.skills).map((skill, index) => (
+                <span key={index} style={styles.resumeChipLight}>
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div style={styles.resumeSectionLight}>
+            <h3 style={styles.resumeSectionTitleDark}>Professional Experience</h3>
+            <ul style={styles.resumeListDark}>
+              {renderList(generatedResume.experienceBullets)}
+            </ul>
+          </div>
+
+          <div style={styles.resumeSectionLight}>
+            <h3 style={styles.resumeSectionTitleDark}>Projects</h3>
+            <ul style={styles.resumeListDark}>
+              {renderList(generatedResume.projectBullets)}
+            </ul>
+          </div>
+
+          <div style={styles.resumeSectionLight}>
+            <h3 style={styles.resumeSectionTitleDark}>Education</h3>
+            <p style={styles.resumeParagraphDark}>
+              {generatedResume.education || "No education detected"}
+            </p>
+          </div>
+
+          {fullText && (
+            <div style={styles.resumeSectionLight}>
+              <h3 style={styles.resumeSectionTitleDark}>Optimized Resume Text</h3>
+              <p style={styles.resumeTextBlockDark}>{fullText}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div style={styles.resumePaper}>
+        <div style={styles.resumeHeader}>
+          <h1 style={styles.resumeName}>Vyankatesh Shinde</h1>
+          <p style={styles.resumeRole}>Java Full Stack Developer</p>
+          <p style={styles.resumeContact}>
+            Java | Spring Boot | Microservices | React.js | MySQL | MongoDB | Kafka | AWS
+          </p>
+        </div>
+
+        <div style={styles.resumeSection}>
+          <h3 style={styles.resumeSectionTitle}>Professional Summary</h3>
+          <p style={styles.resumeParagraph}>
+            {generatedResume.professionalSummary || "No summary generated"}
+          </p>
+        </div>
+
+        <div style={styles.resumeSection}>
+          <h3 style={styles.resumeSectionTitle}>Technical Skills</h3>
+          <div style={styles.resumeChips}>{renderSkillChips(generatedResume.skills)}</div>
+        </div>
+
+        <div style={styles.resumeSection}>
+          <h3 style={styles.resumeSectionTitle}>Experience</h3>
+          <ul style={styles.resumeList}>
+            {renderList(generatedResume.experienceBullets)}
+          </ul>
+        </div>
+
+        <div style={styles.resumeSection}>
+          <h3 style={styles.resumeSectionTitle}>Projects</h3>
+          <ul style={styles.resumeList}>
+            {renderList(generatedResume.projectBullets)}
+          </ul>
+        </div>
+
+        <div style={styles.resumeSection}>
+          <h3 style={styles.resumeSectionTitle}>Education</h3>
+          <p style={styles.resumeParagraph}>
+            {generatedResume.education || "No education detected"}
+          </p>
+        </div>
+
+        {renderFullTextBlock(fullText)}
+      </div>
+    );
   };
 
   const styles = {
@@ -397,6 +735,23 @@ const ResumeBuilderPage = () => {
       justifyContent: "center",
       gap: "9px",
     },
+    refineBtn: {
+      width: "100%",
+      height: "50px",
+      border: "none",
+      borderRadius: "14px",
+      background: "linear-gradient(90deg,#f59e0b,#ea580c)",
+      color: "#ffffff",
+      fontSize: "14px",
+      fontWeight: 950,
+      cursor: refining ? "not-allowed" : "pointer",
+      opacity: refining ? 0.65 : 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "9px",
+      marginTop: "14px",
+    },
     selectedBox: {
       marginTop: "18px",
       padding: "16px",
@@ -406,69 +761,6 @@ const ResumeBuilderPage = () => {
       color: "#bbf7d0",
       fontSize: "13px",
       lineHeight: 1.6,
-    },
-    previewGrid: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-      gap: "18px",
-      marginTop: "20px",
-    },
-    previewCard: {
-      background: "rgba(2,6,23,.72)",
-      border: "1px solid rgba(139,92,246,.18)",
-      borderRadius: "18px",
-      padding: "18px",
-    },
-    previewTitle: {
-      margin: 0,
-      fontSize: "16px",
-      fontWeight: 900,
-      color: "#c4b5fd",
-    },
-    previewText: {
-      marginTop: "12px",
-      color: "#cbd5e1",
-      fontSize: "13px",
-      lineHeight: 1.7,
-      whiteSpace: "pre-wrap",
-    },
-    chips: {
-      marginTop: "12px",
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "9px",
-    },
-    chip: {
-      padding: "8px 11px",
-      borderRadius: "999px",
-      background: "rgba(139,92,246,.14)",
-      border: "1px solid rgba(139,92,246,.28)",
-      color: "#ddd6fe",
-      fontSize: "12px",
-      fontWeight: 800,
-    },
-    list: {
-      margin: "12px 0 0",
-      paddingLeft: "20px",
-      color: "#cbd5e1",
-      fontSize: "13px",
-      lineHeight: 1.7,
-    },
-    fullResumeBox: {
-      marginTop: "18px",
-      width: "100%",
-      minHeight: "240px",
-      borderRadius: "14px",
-      border: "1px solid #334155",
-      background: "#020617",
-      color: "#ffffff",
-      outline: "none",
-      padding: "16px",
-      fontSize: "14px",
-      lineHeight: 1.7,
-      boxSizing: "border-box",
-      fontFamily: "inherit",
-      resize: "vertical",
     },
     emptyBox: {
       marginTop: "14px",
@@ -486,6 +778,200 @@ const ResumeBuilderPage = () => {
       borderRadius: "18px",
       padding: "18px",
       marginTop: "14px",
+    },
+    previewTitle: {
+      margin: 0,
+      fontSize: "16px",
+      fontWeight: 900,
+      color: "#c4b5fd",
+    },
+    previewText: {
+      marginTop: "12px",
+      color: "#cbd5e1",
+      fontSize: "13px",
+      lineHeight: 1.7,
+      whiteSpace: "pre-wrap",
+    },
+    resumePaper: {
+      marginTop: "22px",
+      background: "#020617",
+      border: "1px solid rgba(139,92,246,.35)",
+      borderRadius: "22px",
+      padding: "32px",
+      boxShadow: "0 24px 80px rgba(0,0,0,.35)",
+    },
+    resumePaperModern: {
+      marginTop: "22px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,1), rgba(30,41,59,.96))",
+      border: "1px solid rgba(34,197,94,.28)",
+      borderRadius: "22px",
+      padding: "32px",
+      boxShadow: "0 24px 80px rgba(0,0,0,.35)",
+    },
+    resumePaperClean: {
+      marginTop: "22px",
+      background: "#f8fafc",
+      color: "#0f172a",
+      border: "1px solid rgba(148,163,184,.35)",
+      borderRadius: "22px",
+      padding: "32px",
+      boxShadow: "0 24px 80px rgba(0,0,0,.35)",
+    },
+    resumeHeader: {
+      borderBottom: "1px solid rgba(139,92,246,.35)",
+      paddingBottom: "18px",
+      marginBottom: "22px",
+      textAlign: "center",
+    },
+    resumeModernTop: {
+      display: "flex",
+      justifyContent: "space-between",
+      gap: "18px",
+      flexWrap: "wrap",
+      borderBottom: "1px solid rgba(34,197,94,.28)",
+      paddingBottom: "18px",
+      marginBottom: "22px",
+    },
+    resumeCleanHeader: {
+      borderBottom: "2px solid #334155",
+      paddingBottom: "16px",
+      marginBottom: "22px",
+    },
+    resumeTwoColumn: {
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1.4fr) minmax(260px, .8fr)",
+      gap: "24px",
+    },
+    resumeLeftColumn: { minWidth: 0 },
+    resumeRightColumn: { minWidth: 0 },
+    resumeName: {
+      margin: 0,
+      color: "#ffffff",
+      fontSize: "30px",
+      fontWeight: 950,
+      letterSpacing: ".2px",
+    },
+    resumeNameDark: {
+      margin: 0,
+      color: "#0f172a",
+      fontSize: "30px",
+      fontWeight: 950,
+      letterSpacing: ".2px",
+    },
+    resumeRole: {
+      margin: "8px 0 0",
+      color: "#c4b5fd",
+      fontSize: "16px",
+      fontWeight: 900,
+    },
+    resumeRoleDark: {
+      margin: "8px 0 0",
+      color: "#334155",
+      fontSize: "16px",
+      fontWeight: 900,
+    },
+    resumeContact: {
+      margin: "8px 0 0",
+      color: "#cbd5e1",
+      fontSize: "13px",
+      lineHeight: 1.6,
+    },
+    resumeContactDark: {
+      margin: "8px 0 0",
+      color: "#475569",
+      fontSize: "13px",
+      lineHeight: 1.6,
+    },
+    resumeSection: {
+      marginTop: "20px",
+    },
+    resumeSectionLight: {
+      marginTop: "20px",
+      background: "#ffffff",
+      border: "1px solid #e2e8f0",
+      borderRadius: "14px",
+      padding: "18px",
+    },
+    resumeSectionTitle: {
+      margin: 0,
+      color: "#c4b5fd",
+      fontSize: "15px",
+      fontWeight: 950,
+      textTransform: "uppercase",
+      letterSpacing: ".8px",
+    },
+    resumeSectionTitleDark: {
+      margin: 0,
+      color: "#1e293b",
+      fontSize: "15px",
+      fontWeight: 950,
+      textTransform: "uppercase",
+      letterSpacing: ".8px",
+    },
+    resumeParagraph: {
+      margin: "10px 0 0",
+      color: "#e2e8f0",
+      fontSize: "14px",
+      lineHeight: 1.8,
+    },
+    resumeParagraphDark: {
+      margin: "10px 0 0",
+      color: "#334155",
+      fontSize: "14px",
+      lineHeight: 1.8,
+    },
+    resumeList: {
+      margin: "12px 0 0",
+      paddingLeft: "22px",
+      color: "#e2e8f0",
+      fontSize: "14px",
+      lineHeight: 1.8,
+    },
+    resumeListDark: {
+      margin: "12px 0 0",
+      paddingLeft: "22px",
+      color: "#334155",
+      fontSize: "14px",
+      lineHeight: 1.8,
+    },
+    resumeChips: {
+      marginTop: "12px",
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "9px",
+    },
+    resumeChip: {
+      padding: "8px 11px",
+      borderRadius: "999px",
+      background: "rgba(139,92,246,.14)",
+      border: "1px solid rgba(139,92,246,.28)",
+      color: "#ddd6fe",
+      fontSize: "12px",
+      fontWeight: 850,
+    },
+    resumeChipLight: {
+      padding: "8px 11px",
+      borderRadius: "999px",
+      background: "#ede9fe",
+      border: "1px solid #c4b5fd",
+      color: "#4c1d95",
+      fontSize: "12px",
+      fontWeight: 850,
+    },
+    resumeTextBlock: {
+      marginTop: "12px",
+      color: "#e2e8f0",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      whiteSpace: "pre-wrap",
+    },
+    resumeTextBlockDark: {
+      marginTop: "12px",
+      color: "#334155",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      whiteSpace: "pre-wrap",
     },
   };
 
@@ -515,7 +1001,7 @@ const ResumeBuilderPage = () => {
     {
       title: "Resume Templates",
       description:
-        "Choose from 8 ATS-friendly templates for multiple industries and career levels.",
+        "Choose from ATS-friendly templates for multiple industries and career levels.",
       icon: LayoutTemplate,
       button: "Available Below",
     },
@@ -527,8 +1013,8 @@ const ResumeBuilderPage = () => {
         <h1 style={styles.title}>Resume Builder</h1>
         <p style={styles.subtitle}>
           Build ATS-friendly resumes using AI, job descriptions, template
-          selection, prompt-based refinement, resume versions, and
-          download-ready formats.
+          selection, prompt-based refinement, resume versions, and download-ready
+          formats.
         </p>
       </div>
 
@@ -552,9 +1038,7 @@ const ResumeBuilderPage = () => {
                   {card.button}
                 </Link>
               ) : (
-                <div style={{ ...styles.btn, opacity: 0.65 }}>
-                  {card.button}
-                </div>
+                <div style={{ ...styles.btn, opacity: 0.65 }}>{card.button}</div>
               )}
             </div>
           );
@@ -625,11 +1109,7 @@ const ResumeBuilderPage = () => {
             <label style={styles.label}>Select Uploaded Resume</label>
 
             {resumes.length > 0 ? (
-              <select
-                value={resumeId}
-                onChange={(e) => setResumeId(e.target.value)}
-                style={styles.select}
-              >
+              <select value={resumeId} onChange={handleResumeChange} style={styles.select}>
                 {resumes.map((resume) => (
                   <option key={resume.id} value={resume.id}>
                     {resume.fileName}
@@ -674,11 +1154,7 @@ const ResumeBuilderPage = () => {
         </div>
 
         <div style={styles.actionRow}>
-          <button
-            onClick={handleGenerateResume}
-            disabled={loading}
-            style={styles.generateBtn}
-          >
+          <button onClick={handleGenerateResume} disabled={loading} style={styles.generateBtn}>
             {loading ? (
               <>
                 <Loader2 size={18} />
@@ -693,11 +1169,7 @@ const ResumeBuilderPage = () => {
           </button>
 
           {generatedResume && (
-            <button
-              onClick={handleSaveVersion}
-              disabled={saving}
-              style={styles.saveBtn}
-            >
+            <button onClick={handleSaveVersion} disabled={saving} style={styles.saveBtn}>
               {saving ? (
                 <>
                   <Loader2 size={18} />
@@ -715,82 +1187,63 @@ const ResumeBuilderPage = () => {
       </div>
 
       {generatedResume && (
-        <div style={styles.section}>
-          <h2 style={styles.sectionTitle}>
-            <FileText size={22} color="#c4b5fd" />
-            Generated Resume Preview
-          </h2>
+        <>
+          <div style={styles.section}>
+            <h2 style={styles.sectionTitle}>
+              <FileText size={22} color="#c4b5fd" />
+              Generated Resume Template Preview
+            </h2>
 
-          <div style={styles.previewGrid}>
-            <div style={styles.previewCard}>
-              <h3 style={styles.previewTitle}>Professional Summary</h3>
-              <p style={styles.previewText}>
-                {generatedResume.professionalSummary || "No summary generated"}
-              </p>
-            </div>
-
-            <div style={styles.previewCard}>
-              <h3 style={styles.previewTitle}>Skills</h3>
-              <div style={styles.chips}>
-                {generatedResume.skills?.length ? (
-                  generatedResume.skills.map((skill, index) => (
-                    <span key={index} style={styles.chip}>
-                      {skill}
-                    </span>
-                  ))
-                ) : (
-                  <span style={styles.chip}>No skills generated</span>
-                )}
-              </div>
-            </div>
-
-            <div style={styles.previewCard}>
-              <h3 style={styles.previewTitle}>Experience Bullets</h3>
-              <ul style={styles.list}>
-                {generatedResume.experienceBullets?.length ? (
-                  generatedResume.experienceBullets.map((item, index) => (
-                    <li key={index}>{item}</li>
-                  ))
-                ) : (
-                  <li>No experience bullets generated</li>
-                )}
-              </ul>
-            </div>
-
-            <div style={styles.previewCard}>
-              <h3 style={styles.previewTitle}>Project Bullets</h3>
-              <ul style={styles.list}>
-                {generatedResume.projectBullets?.length ? (
-                  generatedResume.projectBullets.map((item, index) => (
-                    <li key={index}>{item}</li>
-                  ))
-                ) : (
-                  <li>No project bullets generated</li>
-                )}
-              </ul>
-            </div>
-
-            <div style={styles.previewCard}>
-              <h3 style={styles.previewTitle}>Education</h3>
-              <p style={styles.previewText}>
-                {generatedResume.education || "No education detected"}
-              </p>
-            </div>
-
-            <div style={styles.previewCard}>
-              <h3 style={styles.previewTitle}>Selected Template</h3>
-              <p style={styles.previewText}>
-                {generatedResume.templateName || templateName}
-              </p>
-            </div>
+            {renderTemplatePreview()}
           </div>
 
-          <textarea
-            value={generatedResume.fullResumeText || ""}
-            readOnly
-            style={styles.fullResumeBox}
-          />
-        </div>
+          <div style={styles.section}>
+            <h2 style={styles.sectionTitle}>
+              <Edit3 size={22} color="#fbbf24" />
+              Edit Resume With Prompt
+            </h2>
+
+            <p style={styles.desc}>
+              Example: Remove AWS if I do not know it, add measurable project
+              impact, make summary shorter, improve hotel booking project bullets.
+            </p>
+
+            <textarea
+              value={userPrompt}
+              onChange={(e) => setUserPrompt(e.target.value)}
+              placeholder="Enter prompt to modify generated resume..."
+              style={styles.textarea}
+            />
+
+            <button
+              onClick={handleRefineResume}
+              disabled={refining}
+              style={styles.refineBtn}
+            >
+              {refining ? (
+                <>
+                  <Loader2 size={18} />
+                  Refining Resume...
+                </>
+              ) : (
+                <>
+                  <Wand2 size={18} />
+                  Refine Resume With Prompt
+                </>
+              )}
+            </button>
+
+            {refineResult && (
+              <div style={styles.selectedBox}>
+                Intent: <strong>{refineResult.detectedIntent || "CUSTOM"}</strong>
+                <br />
+                Section: <strong>{refineResult.modifiedSection || "Resume"}</strong>
+                <br />
+                {refineResult.changeSummary || "Resume updated successfully."}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       <div style={styles.section}>
