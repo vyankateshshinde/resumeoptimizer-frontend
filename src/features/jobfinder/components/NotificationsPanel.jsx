@@ -5,13 +5,17 @@ import {
 } from "react";
 import toast from "react-hot-toast";
 import {
+  AlertTriangle,
   Bell,
   Check,
   CheckCheck,
+  CheckCircle2,
   ExternalLink,
+  HelpCircle,
   Loader2,
   MapPin,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 
 import {
@@ -22,7 +26,10 @@ import {
 
 const noop = () => {};
 
-const getErrorMessage = (error, fallback) =>
+const getErrorMessage = (
+  error,
+  fallback
+) =>
   error?.response?.data?.message ||
   error?.response?.data?.error ||
   fallback;
@@ -35,10 +42,10 @@ const formatDate = (value) => {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return "Date unavailable";
   }
 
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -47,42 +54,212 @@ const formatDate = (value) => {
   });
 };
 
+const formatExperienceNumber = (value) => {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  return Number.isInteger(number)
+    ? String(number)
+    : number.toFixed(1);
+};
+
+const formatExperienceRange = (
+  notification
+) => {
+  const minimum = formatExperienceNumber(
+    notification.minimumExperience
+  );
+
+  const maximum = formatExperienceNumber(
+    notification.maximumExperience
+  );
+
+  if (minimum && maximum) {
+    if (minimum === maximum) {
+      return `${minimum} years`;
+    }
+
+    return `${minimum} - ${maximum} years`;
+  }
+
+  if (minimum) {
+    return `${minimum}+ years`;
+  }
+
+  if (maximum) {
+    return `Up to ${maximum} years`;
+  }
+
+  return "Not specified";
+};
+
+const getExperiencePresentation = (
+  notification
+) => {
+  const type = String(
+    notification.experienceRequirementType ||
+      "NOT_SPECIFIED"
+  )
+    .trim()
+    .toUpperCase();
+
+  switch (type) {
+    case "REQUIRED":
+      return {
+        className: "required",
+        label: "Required",
+        message:
+          "Mandatory experience requirement",
+        Icon: CheckCircle2,
+      };
+
+    case "PREFERRED":
+      return {
+        className: "preferred",
+        label: "Preferred",
+        message:
+          "You may still apply below this level",
+        Icon: Sparkles,
+      };
+
+    case "AMBIGUOUS":
+      return {
+        className: "ambiguous",
+        label: "Verify",
+        message:
+          "Check the full description before applying",
+        Icon: AlertTriangle,
+      };
+
+    default:
+      return {
+        className: "unspecified",
+        label: "Not specified",
+        message:
+          "No reliable experience requirement found",
+        Icon: HelpCircle,
+      };
+  }
+};
+
+const NotificationExperience = ({
+  notification,
+}) => {
+  const presentation =
+    getExperiencePresentation(
+      notification
+    );
+
+  const {
+    className,
+    label,
+    message,
+    Icon,
+  } = presentation;
+
+  const confidence = Number(
+    notification.experienceConfidence
+  );
+
+  const confidenceText =
+    Number.isFinite(confidence)
+      ? `${Math.round(
+          Math.min(
+            Math.max(confidence, 0),
+            1
+          ) * 100
+        )}% confidence`
+      : null;
+
+  return (
+    <div
+      className={`jf-notification-experience ${className}`}
+    >
+      <Icon size={18} />
+
+      <div>
+        <strong>
+          {label}:{" "}
+          {formatExperienceRange(
+            notification
+          )}
+        </strong>
+
+        <span>{message}</span>
+
+        {notification.experienceEvidence && (
+          <small>
+            “
+            {
+              notification.experienceEvidence
+            }
+            ”
+          </small>
+        )}
+
+        {confidenceText && (
+          <small>{confidenceText}</small>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const NotificationsPanel = ({
   onUnreadCountChange = noop,
 }) => {
-  const [notifications, setNotifications] =
-    useState([]);
-  const [unreadCount, setUnreadCount] =
-    useState(0);
-  const [loading, setLoading] = useState(true);
-  const [busyNotificationId, setBusyNotificationId] =
-    useState(null);
-  const [markingAll, setMarkingAll] =
-    useState(false);
+  const [
+    notifications,
+    setNotifications,
+  ] = useState([]);
 
-  const updateUnreadCount = useCallback(
-    (count) => {
-      const safeCount = Math.max(
-        0,
-        Number(count) || 0
-      );
+  const [
+    unreadCount,
+    setUnreadCount,
+  ] = useState(0);
 
-      setUnreadCount(safeCount);
-      onUnreadCountChange(safeCount);
-    },
-    [onUnreadCountChange]
-  );
+  const [loading, setLoading] =
+    useState(true);
 
-  const loadNotifications = useCallback(
-    async () => {
+  const [
+    busyNotificationId,
+    setBusyNotificationId,
+  ] = useState(null);
+
+  const [
+    markingAll,
+    setMarkingAll,
+  ] = useState(false);
+
+  const updateUnreadCount =
+    useCallback(
+      (count) => {
+        const safeCount = Math.max(
+          0,
+          Number(count) || 0
+        );
+
+        setUnreadCount(safeCount);
+        onUnreadCountChange(safeCount);
+      },
+      [onUnreadCountChange]
+    );
+
+  const loadNotifications =
+    useCallback(async () => {
       try {
         setLoading(true);
 
-        const [notificationData, count] =
-          await Promise.all([
-            getNotifications(),
-            getUnreadNotificationCount(),
-          ]);
+        const [
+          notificationData,
+          count,
+        ] = await Promise.all([
+          getNotifications(),
+          getUnreadNotificationCount(),
+        ]);
 
         setNotifications(
           Array.isArray(notificationData)
@@ -103,9 +280,7 @@ const NotificationsPanel = ({
       } finally {
         setLoading(false);
       }
-    },
-    [updateUnreadCount]
-  );
+    }, [updateUnreadCount]);
 
   useEffect(() => {
     loadNotifications();
@@ -119,7 +294,9 @@ const NotificationsPanel = ({
     }
 
     try {
-      setBusyNotificationId(notification.id);
+      setBusyNotificationId(
+        notification.id
+      );
 
       const updatedNotification =
         await markNotificationRead(
@@ -135,7 +312,9 @@ const NotificationsPanel = ({
         )
       );
 
-      updateUnreadCount(unreadCount - 1);
+      updateUnreadCount(
+        Math.max(0, unreadCount - 1)
+      );
 
       toast.success(
         "Notification marked as read"
@@ -154,55 +333,61 @@ const NotificationsPanel = ({
     }
   };
 
-  const handleMarkAllRead = async () => {
-    const unreadNotifications =
-      notifications.filter(
-        (notification) => !notification.read
-      );
-
-    if (unreadNotifications.length === 0) {
-      return;
-    }
-
-    try {
-      setMarkingAll(true);
-
-      await Promise.all(
-        unreadNotifications.map(
+  const handleMarkAllRead =
+    async () => {
+      const unreadNotifications =
+        notifications.filter(
           (notification) =>
-            markNotificationRead(
-              notification.id
-            )
-        )
-      );
+            !notification.read
+        );
 
-      setNotifications((current) =>
-        current.map((notification) => ({
-          ...notification,
-          read: true,
-        }))
-      );
+      if (
+        unreadNotifications.length === 0
+      ) {
+        return;
+      }
 
-      updateUnreadCount(0);
+      try {
+        setMarkingAll(true);
 
-      toast.success(
-        "All notifications marked as read"
-      );
-    } catch (error) {
-      console.error(error);
+        await Promise.all(
+          unreadNotifications.map(
+            (notification) =>
+              markNotificationRead(
+                notification.id
+              )
+          )
+        );
 
-      toast.error(
-        getErrorMessage(
-          error,
-          "Unable to mark all notifications as read"
-        )
-      );
+        setNotifications((current) =>
+          current.map(
+            (notification) => ({
+              ...notification,
+              read: true,
+            })
+          )
+        );
 
-      await loadNotifications();
-    } finally {
-      setMarkingAll(false);
-    }
-  };
+        updateUnreadCount(0);
+
+        toast.success(
+          "All notifications marked as read"
+        );
+      } catch (error) {
+        console.error(error);
+
+        toast.error(
+          getErrorMessage(
+            error,
+            "Unable to mark all notifications as read"
+          )
+        );
+
+        await loadNotifications();
+      } finally {
+        setMarkingAll(false);
+      }
+    };
 
   if (loading) {
     return (
@@ -272,8 +457,9 @@ const NotificationsPanel = ({
           <h3>No notifications yet</h3>
 
           <p>
-            Notifications will appear when enabled
-            alerts find matching jobs.
+            Notifications will appear when
+            enabled alerts find matching
+            jobs.
           </p>
         </div>
       ) : (
@@ -326,6 +512,7 @@ const NotificationsPanel = ({
                   <div className="jf-notification-meta">
                     <span>
                       <MapPin size={15} />
+
                       {notification.location ||
                         "Location unavailable"}
                     </span>
@@ -342,6 +529,12 @@ const NotificationsPanel = ({
                       )}
                     </span>
                   </div>
+
+                  <NotificationExperience
+                    notification={
+                      notification
+                    }
+                  />
 
                   <div className="jf-notification-actions">
                     {!notification.read ? (
@@ -388,7 +581,9 @@ const NotificationsPanel = ({
                         rel="noreferrer"
                       >
                         Apply
-                        <ExternalLink size={16} />
+                        <ExternalLink
+                          size={16}
+                        />
                       </a>
                     )}
                   </div>

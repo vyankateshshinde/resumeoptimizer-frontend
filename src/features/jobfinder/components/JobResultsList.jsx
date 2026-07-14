@@ -1,15 +1,31 @@
-import { SearchX } from "lucide-react";
+import {
+  SearchX,
+} from "lucide-react";
+
 import JobResultCard from "./JobResultCard";
 
-const JobResultsList = ({ result, savingJobId, onSave }) => {
-  const jobs = result?.jobs || [];
+const JobResultsList = ({
+  result,
+  savingJobId,
+  onSave,
+  onViewDetails,
+}) => {
+  const jobs =
+    result?.jobs || [];
 
   if (!result) {
     return (
       <div className="jf-empty">
         <SearchX size={38} />
-        <h3>Start with your preferences</h3>
-        <p>Your matching jobs will appear here.</p>
+
+        <h3>
+          Start with your preferences
+        </h3>
+
+        <p>
+          Your matching jobs will
+          appear here.
+        </p>
       </div>
     );
   }
@@ -18,8 +34,16 @@ const JobResultsList = ({ result, savingJobId, onSave }) => {
     return (
       <div className="jf-empty">
         <SearchX size={38} />
-        <h3>No matching jobs found</h3>
-        <p>Try broader titles, locations, or a lower match threshold.</p>
+
+        <h3>
+          No matching jobs found
+        </h3>
+
+        <p>
+          Try broader titles,
+          locations, or a lower match
+          threshold.
+        </p>
       </div>
     );
   }
@@ -28,10 +52,26 @@ const JobResultsList = ({ result, savingJobId, onSave }) => {
     <section>
       <div className="jf-results-summary">
         <div>
-          <h2>Recommended jobs</h2>
-          <p>{result.totalElements} matching job{result.totalElements === 1 ? "" : "s"}</p>
+          <h2>
+            Recommended jobs
+          </h2>
+
+          <p>
+            {result.totalElements}{" "}
+            matching{" "}
+            {result.totalElements === 1
+              ? "job"
+              : "jobs"}
+          </p>
         </div>
-        <span>Page {result.page + 1} of {Math.max(result.totalPages, 1)}</span>
+
+        <span>
+          Page {result.page + 1} of{" "}
+          {Math.max(
+            result.totalPages,
+            1
+          )}
+        </span>
       </div>
 
       <div className="jf-results-list">
@@ -39,8 +79,13 @@ const JobResultsList = ({ result, savingJobId, onSave }) => {
           <JobResultCard
             key={job.jobId}
             job={job}
-            saving={savingJobId === job.jobId}
+            saving={
+              savingJobId === job.jobId
+            }
             onSave={onSave}
+            onViewDetails={
+              onViewDetails
+            }
           />
         ))}
       </div>

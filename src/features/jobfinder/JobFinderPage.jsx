@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -17,6 +18,7 @@ import JobResultsList from "./components/JobResultsList";
 import SavedJobsPanel from "./components/SavedJobsPanel";
 import AlertsPanel from "./components/AlertsPanel";
 import NotificationsPanel from "./components/NotificationsPanel";
+import JobDetailsModal from "./components/JobDetailsModal";
 
 import {
   getUnreadNotificationCount,
@@ -26,7 +28,10 @@ import {
 
 import "./jobFinder.css";
 
-const getErrorMessage = (error, fallback) =>
+const getErrorMessage = (
+  error,
+  fallback
+) =>
   error?.response?.data?.message ||
   error?.response?.data?.error ||
   fallback;
@@ -34,15 +39,28 @@ const getErrorMessage = (error, fallback) =>
 const JobFinderPage = () => {
   const [activeTab, setActiveTab] =
     useState("search");
-  const [result, setResult] = useState(null);
+
+  const [result, setResult] =
+    useState(null);
+
   const [loading, setLoading] =
     useState(false);
+
   const [savingJobId, setSavingJobId] =
     useState(null);
-  const [savedJobsVersion, setSavedJobsVersion] =
-    useState(0);
+
+  const [
+    savedJobsVersion,
+    setSavedJobsVersion,
+  ] = useState(0);
+
   const [unreadCount, setUnreadCount] =
     useState(0);
+
+  const [
+    selectedJobId,
+    setSelectedJobId,
+  ] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -70,7 +88,9 @@ const JobFinderPage = () => {
     };
   }, []);
 
-  const handleSearch = async (payload) => {
+  const handleSearch = async (
+    payload
+  ) => {
     if (
       !payload.resumeId ||
       payload.jobTitles.length === 0
@@ -78,13 +98,15 @@ const JobFinderPage = () => {
       toast.error(
         "Please select a resume and enter at least one job title"
       );
+
       return;
     }
 
     try {
       setLoading(true);
 
-      const data = await searchJobs(payload);
+      const data =
+        await searchJobs(payload);
 
       setResult(data);
 
@@ -107,7 +129,9 @@ const JobFinderPage = () => {
     }
   };
 
-  const handleSave = async (jobId) => {
+  const handleSave = async (
+    jobId
+  ) => {
     try {
       setSavingJobId(jobId);
 
@@ -121,10 +145,13 @@ const JobFinderPage = () => {
     } catch (error) {
       console.error(error);
 
-      if (error?.response?.status === 409) {
+      if (
+        error?.response?.status === 409
+      ) {
         toast.error(
           "This job is already saved"
         );
+
         return;
       }
 
@@ -139,6 +166,33 @@ const JobFinderPage = () => {
     }
   };
 
+  const handleViewDetails =
+    useCallback((jobId) => {
+      const normalizedJobId =
+        Number(jobId);
+
+      if (
+        !Number.isFinite(
+          normalizedJobId
+        )
+      ) {
+        toast.error(
+          "Unable to open job details"
+        );
+
+        return;
+      }
+
+      setSelectedJobId(
+        normalizedJobId
+      );
+    }, []);
+
+  const handleCloseDetails =
+    useCallback(() => {
+      setSelectedJobId(null);
+    }, []);
+
   return (
     <div className="jf-page">
       <header className="jf-hero">
@@ -149,35 +203,56 @@ const JobFinderPage = () => {
           </p>
 
           <h1>
-            Find jobs matched to your resume
+            Find jobs matched to your
+            resume
           </h1>
 
           <span>
-            Search recent openings, compare skills,
-            and rank opportunities by resume fit,
-            title relevance, experience, and
-            freshness.
+            Search recent openings,
+            compare skills, and rank
+            opportunities by resume fit,
+            title relevance, experience,
+            and freshness.
           </span>
         </div>
 
         <div className="jf-hero-stats">
           <div>
-            <BriefcaseBusiness size={22} />
-            <strong>Recent roles</strong>
-            <span>1–30 day filters</span>
+            <BriefcaseBusiness
+              size={22}
+            />
+
+            <strong>
+              Recent roles
+            </strong>
+
+            <span>
+              1–30 day filters
+            </span>
           </div>
 
           <div>
             <Target size={22} />
-            <strong>Match scoring</strong>
-            <span>Resume + job signals</span>
+
+            <strong>
+              Match scoring
+            </strong>
+
+            <span>
+              Resume + job signals
+            </span>
           </div>
 
           <div>
             <Bell size={22} />
-            <strong>Alerts ready</strong>
+
+            <strong>
+              Alerts ready
+            </strong>
+
             <span>
-              Preferences and notifications
+              Preferences and
+              notifications
             </span>
           </div>
         </div>
@@ -232,12 +307,15 @@ const JobFinderPage = () => {
         <button
           type="button"
           className={
-            activeTab === "notifications"
+            activeTab ===
+            "notifications"
               ? "jf-tab-button active"
               : "jf-tab-button"
           }
           onClick={() =>
-            setActiveTab("notifications")
+            setActiveTab(
+              "notifications"
+            )
           }
         >
           <Bell size={18} />
@@ -264,13 +342,21 @@ const JobFinderPage = () => {
             result={result}
             savingJobId={savingJobId}
             onSave={handleSave}
+            onViewDetails={
+              handleViewDetails
+            }
           />
         </div>
       )}
 
       {activeTab === "saved" && (
         <SavedJobsPanel
-          refreshKey={savedJobsVersion}
+          refreshKey={
+            savedJobsVersion
+          }
+          onViewDetails={
+            handleViewDetails
+          }
         />
       )}
 
@@ -278,13 +364,21 @@ const JobFinderPage = () => {
         <AlertsPanel />
       )}
 
-      {activeTab === "notifications" && (
+      {activeTab ===
+        "notifications" && (
         <NotificationsPanel
           onUnreadCountChange={
             setUnreadCount
           }
         />
       )}
+
+      <JobDetailsModal
+        jobId={selectedJobId}
+        onClose={
+          handleCloseDetails
+        }
+      />
     </div>
   );
 };
