@@ -67,9 +67,21 @@ export const setAlertEnabled = async (alertId, enabled) => {
   return response.data;
 };
 
+export const deleteAlert = async (alertId) => {
+  await axiosInstance.delete(`${BASE_PATH}/alerts/${alertId}`);
+};
+
 export const getNotifications = async () => {
   const response = await axiosInstance.get(`${BASE_PATH}/notifications`);
   return response.data;
+};
+
+export const getUnreadNotificationCount = async () => {
+  const response = await axiosInstance.get(
+    `${BASE_PATH}/notifications/unread-count`
+  );
+
+  return Number(response.data?.unreadCount ?? 0);
 };
 
 export const markNotificationRead = async (notificationId) => {

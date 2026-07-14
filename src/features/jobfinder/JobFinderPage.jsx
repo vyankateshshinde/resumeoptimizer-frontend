@@ -1,7 +1,11 @@
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 import toast from "react-hot-toast";
 import {
   Bell,
+  BellRing,
   BookmarkCheck,
   BriefcaseBusiness,
   Search,
@@ -11,8 +15,11 @@ import {
 import JobFinderSearchForm from "./components/JobFinderSearchForm";
 import JobResultsList from "./components/JobResultsList";
 import SavedJobsPanel from "./components/SavedJobsPanel";
+import AlertsPanel from "./components/AlertsPanel";
+import NotificationsPanel from "./components/NotificationsPanel";
 
 import {
+  getUnreadNotificationCount,
   saveJob,
   searchJobs,
 } from "./api/jobFinderApi";
@@ -28,11 +35,40 @@ const JobFinderPage = () => {
   const [activeTab, setActiveTab] =
     useState("search");
   const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(false);
   const [savingJobId, setSavingJobId] =
     useState(null);
   const [savedJobsVersion, setSavedJobsVersion] =
     useState(0);
+  const [unreadCount, setUnreadCount] =
+    useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUnreadCount = async () => {
+      try {
+        const count =
+          await getUnreadNotificationCount();
+
+        if (mounted) {
+          setUnreadCount(count);
+        }
+      } catch (error) {
+        console.error(
+          "Unable to load unread notification count",
+          error
+        );
+      }
+    };
+
+    loadUnreadCount();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSearch = async (payload) => {
     if (
@@ -53,7 +89,9 @@ const JobFinderPage = () => {
       setResult(data);
 
       toast.success(
-        `Found ${data.totalElements} matching jobs`
+        `Found ${
+          data.totalElements ?? 0
+        } matching jobs`
       );
     } catch (error) {
       console.error(error);
@@ -83,15 +121,18 @@ const JobFinderPage = () => {
     } catch (error) {
       console.error(error);
 
-      const status = error?.response?.status;
-
-      if (status === 409) {
-        toast.error("This job is already saved");
+      if (error?.response?.status === 409) {
+        toast.error(
+          "This job is already saved"
+        );
         return;
       }
 
       toast.error(
-        getErrorMessage(error, "Unable to save job")
+        getErrorMessage(
+          error,
+          "Unable to save job"
+        )
       );
     } finally {
       setSavingJobId(null);
@@ -150,7 +191,9 @@ const JobFinderPage = () => {
               ? "jf-tab-button active"
               : "jf-tab-button"
           }
-          onClick={() => setActiveTab("search")}
+          onClick={() =>
+            setActiveTab("search")
+          }
         >
           <Search size={18} />
           Search Jobs
@@ -163,14 +206,54 @@ const JobFinderPage = () => {
               ? "jf-tab-button active"
               : "jf-tab-button"
           }
-          onClick={() => setActiveTab("saved")}
+          onClick={() =>
+            setActiveTab("saved")
+          }
         >
           <BookmarkCheck size={18} />
           Saved Jobs
         </button>
+
+        <button
+          type="button"
+          className={
+            activeTab === "alerts"
+              ? "jf-tab-button active"
+              : "jf-tab-button"
+          }
+          onClick={() =>
+            setActiveTab("alerts")
+          }
+        >
+          <BellRing size={18} />
+          Alerts
+        </button>
+
+        <button
+          type="button"
+          className={
+            activeTab === "notifications"
+              ? "jf-tab-button active"
+              : "jf-tab-button"
+          }
+          onClick={() =>
+            setActiveTab("notifications")
+          }
+        >
+          <Bell size={18} />
+          Notifications
+
+          {unreadCount > 0 && (
+            <span className="jf-tab-badge">
+              {unreadCount > 99
+                ? "99+"
+                : unreadCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {activeTab === "search" ? (
+      {activeTab === "search" && (
         <div className="jf-layout">
           <JobFinderSearchForm
             loading={loading}
@@ -183,9 +266,23 @@ const JobFinderPage = () => {
             onSave={handleSave}
           />
         </div>
-      ) : (
+      )}
+
+      {activeTab === "saved" && (
         <SavedJobsPanel
           refreshKey={savedJobsVersion}
+        />
+      )}
+
+      {activeTab === "alerts" && (
+        <AlertsPanel />
+      )}
+
+      {activeTab === "notifications" && (
+        <NotificationsPanel
+          onUnreadCountChange={
+            setUnreadCount
+          }
         />
       )}
     </div>
