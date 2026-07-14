@@ -370,6 +370,9 @@ const JobFinderPage = () => {
           onUnreadCountChange={
             setUnreadCount
           }
+          onViewDetails={
+            handleViewDetails
+          }
         />
       )}
 

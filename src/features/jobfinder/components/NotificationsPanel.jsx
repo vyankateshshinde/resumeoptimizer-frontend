@@ -11,6 +11,7 @@ import {
   CheckCheck,
   CheckCircle2,
   ExternalLink,
+  Eye,
   HelpCircle,
   Loader2,
   MapPin,
@@ -54,7 +55,9 @@ const formatDate = (value) => {
   });
 };
 
-const formatExperienceNumber = (value) => {
+const formatExperienceNumber = (
+  value
+) => {
   const number = Number(value);
 
   if (!Number.isFinite(number)) {
@@ -69,13 +72,15 @@ const formatExperienceNumber = (value) => {
 const formatExperienceRange = (
   notification
 ) => {
-  const minimum = formatExperienceNumber(
-    notification.minimumExperience
-  );
+  const minimum =
+    formatExperienceNumber(
+      notification.minimumExperience
+    );
 
-  const maximum = formatExperienceNumber(
-    notification.maximumExperience
-  );
+  const maximum =
+    formatExperienceNumber(
+      notification.maximumExperience
+    );
 
   if (minimum && maximum) {
     if (minimum === maximum) {
@@ -94,6 +99,26 @@ const formatExperienceRange = (
   }
 
   return "Not specified";
+};
+
+const formatExtractionMethod = (
+  value
+) => {
+  if (
+    !value ||
+    value === "NOT_PROCESSED"
+  ) {
+    return null;
+  }
+
+  return String(value)
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(
+      /\b\w/g,
+      (character) =>
+        character.toUpperCase()
+    );
 };
 
 const getExperiencePresentation = (
@@ -165,7 +190,8 @@ const NotificationExperience = ({
   );
 
   const confidenceText =
-    Number.isFinite(confidence)
+    Number.isFinite(confidence) &&
+    confidence > 0
       ? `${Math.round(
           Math.min(
             Math.max(confidence, 0),
@@ -173,6 +199,11 @@ const NotificationExperience = ({
           ) * 100
         )}% confidence`
       : null;
+
+  const extractionMethod =
+    formatExtractionMethod(
+      notification.experienceExtractionMethod
+    );
 
   return (
     <div
@@ -191,7 +222,7 @@ const NotificationExperience = ({
         <span>{message}</span>
 
         {notification.experienceEvidence && (
-          <small>
+          <small className="jf-notification-experience-evidence">
             “
             {
               notification.experienceEvidence
@@ -200,8 +231,21 @@ const NotificationExperience = ({
           </small>
         )}
 
-        {confidenceText && (
-          <small>{confidenceText}</small>
+        {(confidenceText ||
+          extractionMethod) && (
+          <div className="jf-notification-experience-tags">
+            {confidenceText && (
+              <small>
+                {confidenceText}
+              </small>
+            )}
+
+            {extractionMethod && (
+              <small>
+                {extractionMethod}
+              </small>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -210,6 +254,7 @@ const NotificationExperience = ({
 
 const NotificationsPanel = ({
   onUnreadCountChange = noop,
+  onViewDetails = noop,
 }) => {
   const [
     notifications,
@@ -537,6 +582,19 @@ const NotificationsPanel = ({
                   />
 
                   <div className="jf-notification-actions">
+                    <button
+                      type="button"
+                      className="jf-notification-details-button"
+                      onClick={() =>
+                        onViewDetails(
+                          notification.jobId
+                        )
+                      }
+                    >
+                      <Eye size={16} />
+                      Details
+                    </button>
+
                     {!notification.read ? (
                       <button
                         type="button"
@@ -562,7 +620,10 @@ const NotificationsPanel = ({
                           <Check size={16} />
                         )}
 
-                        Mark as read
+                        {busyNotificationId ===
+                        notification.id
+                          ? "Updating..."
+                          : "Mark as read"}
                       </button>
                     ) : (
                       <span className="jf-read-label">
