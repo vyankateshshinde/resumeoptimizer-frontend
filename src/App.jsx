@@ -13,7 +13,7 @@ import ResumeBuilderPage from "./pages/ResumeBuilderPage";
 import ResumeUploadPage from "./pages/ResumeUploadPage";
 import ResumeVersionsPage from "./pages/ResumeVersionsPage";
 
-import JobFinderPage from "./features/jobFinder/JobFinderPage";
+import JobFinderPage from "./features/jobfinder/JobFinderPage";
 
 const ProtectedLayout = () => {
   return (
