@@ -10,6 +10,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ResumeBuilderPage from "./pages/ResumeBuilderPage";
 import ResumeUploadPage from "./pages/ResumeUploadPage";
 import ResumeVersionsPage from "./pages/ResumeVersionsPage";
+import JobFinderPage from "./features/jobFinder/JobFinderPage";
 
 const ProtectedLayout = () => (
   <ProtectedRoute>
@@ -33,6 +34,7 @@ function App() {
         <Route path="/ats-history" element={<AtsHistoryPage />} />
         <Route path="/prompt-editor" element={<PromptResumeEditorPage />} />
         <Route path="/resume-versions" element={<ResumeVersionsPage />} />
+        <Route path="/job-finder" element={<JobFinderPage />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Brain,
+  BriefcaseBusiness,
   FilePenLine,
   FileText,
   History,
@@ -21,6 +22,7 @@ const navItems = [
   { label: "AI ATS Analysis", path: "/ats-analysis", icon: Sparkles },
   { label: "ATS History", path: "/ats-history", icon: History },
   { label: "Resume Versions", path: "/resume-versions", icon: FileText },
+  { label: "Job Finder", path: "/job-finder", icon: BriefcaseBusiness },
 ];
 
 const AppLayout = ({ children }) => {
